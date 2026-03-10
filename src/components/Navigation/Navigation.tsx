@@ -35,10 +35,10 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole }) => {
             <li key={item.path}>
               <Link
                 to={item.path}
-                className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-all duration-200 ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
                   location.pathname === item.path
-                    ? 'bg-sand text-charcoal font-medium'
-                    : 'text-slate hover:text-charcoal'
+                    ? 'bg-sand text-charcoal font-semibold shadow-sm'
+                    : 'text-slate hover:text-charcoal hover:bg-sand/40'
                 }`}
               >
                 <span>{item.icon}</span>
