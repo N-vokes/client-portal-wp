@@ -67,7 +67,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
           )}
         </div>
       </div>
-
+{/* Demo Banner - Premium Vibe */}
+<div className="max-w-7xl mx-auto px-8 mt-6">
+  <div className="bg-yellow-50 text-yellow-900 px-6 py-3 rounded-lg mb-6 text-sm border border-yellow-200 text-center shadow-sm font-medium tracking-wide">
+    This is a demo wedding portal showing how planners can share progress with couples.
+  </div>
+</div>
       {/* Stats Grid */}
       <div className="max-w-7xl mx-auto px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
