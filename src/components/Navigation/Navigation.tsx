@@ -22,9 +22,9 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole }) => {
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <div className="text-2xl">💍</div>
           <div>
-            <h1 className="text-xl font-serif text-charcoal">Wedding Command Center</h1>
+            <h1 className="text-xl font-serif text-charcoal">The Ever After</h1>
             <p className="text-xs text-slate">
-              {userRole === 'planner' ? 'Planner Portal' : 'Couple Portal'}
+              {userRole === 'planner' ? 'Planner Portal' : 'Wedding Portal'}
             </p>
           </div>
         </Link>
@@ -50,7 +50,7 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole }) => {
 
         {/* User Info */}
         <div className="text-right text-sm">
-          <p className="text-charcoal font-medium">Sarah & Michael</p>
+          <p className="text-charcoal font-medium">Demo Wedding -Sarah & Michael</p>
           <p className="text-slate text-xs">{userRole === 'planner' ? 'Planner' : 'Couple'}</p>
         </div>
       </div>
