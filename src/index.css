@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-cream text-charcoal font-sans;
+  }
+
+  h1 {
+    @apply text-4xl font-serif font-normal tracking-tight;
+  }
+
+  h2 {
+    @apply text-3xl font-serif font-normal;
+  }
+
+  h3 {
+    @apply text-xl font-serif font-normal;
+  }
+
+  p {
+    @apply leading-relaxed text-slate;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 rounded-sm bg-charcoal text-cream hover:bg-slate transition-all duration-200 font-medium;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 rounded-sm bg-sand text-charcoal hover:bg-taupe transition-all duration-200 font-medium border border-gold;
+  }
+
+  .card {
+    @apply bg-white rounded-lg p-8 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .section-header {
+    @apply text-3xl font-serif text-charcoal mb-8 mt-16;
+  }
+
+  /* Page transitions */
+  .page-enter {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  /* Timeline completion animations */
+  .animate-checkComplete {
+    animation: checkComplete 0.3s ease-out;
+  }
+
+  /* Mood board hover effects */
+  .mood-image-hover {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  /* Skeleton loading animation */
+  .animate-skeleton {
+    animation: skeleton-loading 1.5s infinite;
+  }
+
+  /* Toast notifications */
+  .toast-notification {
+    animation: slideIn 0.3s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes checkComplete {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes checkmark {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes subtlePulse {
+  0%, 100% {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  50% {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  }
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+* {
+  @apply box-border;
+}
