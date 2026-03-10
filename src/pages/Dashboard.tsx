@@ -1,4 +1,4 @@
-import React, { use effect } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useWedding } from '../contexts/WeddingContext';
 import { DashboardSkeleton } from '../components/Skeleton';
@@ -10,7 +10,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
   const { wedding, timelineEvents, contracts, moodBoardImages, loading } = useWedding();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const coupleNames = wedding?.coupleNames || 'Demo Couple';
     if (userRole === 'planner') {
       document.title = `The Ever After Wedding Portal – Planner Dashboard`;
