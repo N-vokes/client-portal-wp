@@ -220,18 +220,27 @@ export const MoodBoard: React.FC<MoodBoardProps> = ({ userRole }) => {
 
         {/* Collaboration Tips */}
         <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="card">
-            <p className="text-2xl mb-3">🎨</p>
+          <div className="card opacity-70 pointer-events-none" style={{ cursor: 'not-allowed' }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-2xl">🎨</p>
+              <span className="text-xs text-slate">Coming soon</span>
+            </div>
             <h3 className="font-serif text-charcoal mb-2">Colors & Palette</h3>
             <p className="text-sm text-slate">Define your color story with inspiration from real examples</p>
           </div>
-          <div className="card">
-            <p className="text-2xl mb-3">💬</p>
+          <div className="card opacity-70 pointer-events-none" style={{ cursor: 'not-allowed' }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-2xl">💬</p>
+              <span className="text-xs text-slate">Coming soon</span>
+            </div>
             <h3 className="font-serif text-charcoal mb-2">Add Notes</h3>
             <p className="text-sm text-slate">Comment on images to share thoughts and preferences</p>
           </div>
-          <div className="card">
-            <p className="text-2xl mb-3">👥</p>
+          <div className="card opacity-70 pointer-events-none" style={{ cursor: 'not-allowed' }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-2xl">👥</p>
+              <span className="text-xs text-slate">Coming soon</span>
+            </div>
             <h3 className="font-serif text-charcoal mb-2">Collaborate</h3>
             <p className="text-sm text-slate">Both you and your planner can contribute and refine ideas</p>
           </div>

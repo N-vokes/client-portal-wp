@@ -15,6 +15,10 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole }) => {
     { path: '/moodboard', label: 'Mood Board', icon: '✨' },
   ];
 
+  if (userRole === 'planner') {
+    navItems.push({ path: '/clients', label: 'Clients', icon: '👥' });
+  }
+
   return (
     <nav className="bg-white border-b border-gold/20 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
@@ -24,7 +28,7 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole }) => {
           <div>
             <h1 className="text-xl font-serif text-charcoal">The Ever After</h1>
             <p className="text-xs text-slate">
-              {userRole === 'planner' ? 'Planner Portal' : 'Wedding Portal'}
+              Wedding Portal
             </p>
           </div>
         </Link>
