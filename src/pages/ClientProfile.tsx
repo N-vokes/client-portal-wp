@@ -14,7 +14,11 @@ import { PaymentTrackingSection } from '../components/ClientProfile/PaymentTrack
 import { MilestonesSection } from '../components/ClientProfile/MilestonesSection';
 import { MoodBoardPreview } from '../components/ClientProfile/MoodBoardPreview';
 
-export const ClientProfile: React.FC = () => {
+interface ClientProfileProps {
+  userRole: 'planner' | 'couple';
+}
+
+export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
   const { id } = useParams<{ id: string }>();
 
   const client = useMemo(() => {
@@ -288,24 +292,27 @@ export const ClientProfile: React.FC = () => {
         progress={client.progress}
       />
 
-      <div className="max-w-6xl mx-auto px-8 py-10">
-        <QuickActionsReminders reminders={reminders} />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+  <div className="space-y-6 sm:space-y-8">
+    {userRole === 'planner' && (
+      <QuickActionsReminders reminders={reminders} />
+    )}
 
-        <div className="mt-6 bg-white rounded-2xl border border-gold/20 p-8 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div className="bg-white rounded-2xl border border-gold/20 p-4 sm:p-6 lg:p-8 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
             <div>
               <h2 className="text-xl font-serif text-charcoal mb-3">Wedding Date</h2>
-              <p className="text-slate text-lg font-medium">{new Date(client.weddingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p className="text-slate text-base sm:text-lg font-medium">{new Date(client.weddingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
             <div>
-              <h2 className="text-xl font-serif text-charcoal mb-3">Location</h2>
-              <p className="text-slate text-lg font-medium">{client.location}</p>
+              <h2 className="text-lg sm:text-xl font-serif text-charcoal mb-2 sm:mb-3">Location</h2>
+              <p className="text-slate text-base sm:text-lg font-medium break-words">{client.location}</p>
             </div>
           </div>
 
-          <div className="mt-8 border-t border-gold/20 pt-6">
-            <h2 className="text-2xl font-serif text-charcoal mb-3">Planning Progress</h2>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="mt-6 sm:mt-8 border-t border-gold/20 pt-4 sm:pt-6">
+            <h2 className="text-xl sm:text-2xl font-serif text-charcoal mb-2 sm:mb-3">Planning Progress</h2>
+            
               <span className="text-sm text-slate">{client.progress}% complete</span>
               <span className="inline-flex items-center gap-2 text-xs font-semibold text-charcoal bg-sand px-3 py-1 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-gold" />
@@ -330,48 +337,60 @@ export const ClientProfile: React.FC = () => {
           overallStatus={overallStatus}
         />
 
-        <div className="mt-6 rounded-2xl border border-gold/20 bg-white p-4 shadow-sm">
-          <p className="text-xs text-slate uppercase tracking-wide mb-1">Next action</p>
-          <p className="text-sm font-medium text-charcoal">{nextAction}</p>
+        <div className="rounded-2xl border border-gold/20 bg-white p-4 sm:p-5 shadow-sm">
+          <p className="text-[11px] sm:text-xs text-slate uppercase tracking-wide mb-1">
+  {userRole === 'planner' ? 'Next action' : 'What’s next'}
+</p>
+<p className="text-sm sm:text-base font-medium text-charcoal leading-relaxed">
+  {userRole === 'planner' ? nextAction : 'Your planner is keeping everything on track. Here is the next key focus for your wedding.'}
+</p>
         </div>
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3">
+        <div
+  className={`grid grid-cols-1 gap-6 lg:gap-8 ${
+    userRole === 'planner' ? 'lg:grid-cols-[2fr_1fr]' : ''
+  }`}
+>
+          <div className="space-y-6 sm:space-y-8">
+  {userRole === 'planner' && (
+    <>
+      <NotesSection
+        notes={notes}
+        noteTitle={noteTitle}
+        noteContent={noteContent}
+        onTitleChange={setNoteTitle}
+        onContentChange={setNoteContent}
+        onAddNote={handleAddNote}
+      />
 
-        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[2fr_1fr]">
-          <div className="space-y-8">
-            <NotesSection
-              notes={notes}
-              noteTitle={noteTitle}
-              noteContent={noteContent}
-              onTitleChange={setNoteTitle}
-              onContentChange={setNoteContent}
-              onAddNote={handleAddNote}
-            />
+      <CommunicationLogSection
+        communication={communication}
+        commType={commType}
+        commSummary={commSummary}
+        commDate={commDate}
+        commFollowUp={commFollowUp}
+        onTypeChange={setCommType}
+        onSummaryChange={setCommSummary}
+        onDateChange={setCommDate}
+        onFollowUpChange={setCommFollowUp}
+        onAddCommunication={handleAddCommunication}
+      />
 
-            <CommunicationLogSection
-              communication={communication}
-              commType={commType}
-              commSummary={commSummary}
-              commDate={commDate}
-              commFollowUp={commFollowUp}
-              onTypeChange={setCommType}
-              onSummaryChange={setCommSummary}
-              onDateChange={setCommDate}
-              onFollowUpChange={setCommFollowUp}
-              onAddCommunication={handleAddCommunication}
-            />
-
-            <VendorTrackingSection
-              vendors={vendors}
-              vendorName={vendorName}
-              vendorCategory={vendorCategory}
-              vendorStatus={vendorStatus}
-              vendorNote={vendorNote}
-              onNameChange={setVendorName}
-              onCategoryChange={setVendorCategory}
-              onStatusChange={setVendorStatus}
-              onNoteChange={setVendorNote}
-              onAddVendor={handleAddVendor}
-            />
-          </div>
+      <VendorTrackingSection
+        vendors={vendors}
+        vendorName={vendorName}
+        vendorCategory={vendorCategory}
+        vendorStatus={vendorStatus}
+        vendorNote={vendorNote}
+        onNameChange={setVendorName}
+        onCategoryChange={setVendorCategory}
+        onStatusChange={setVendorStatus}
+        onNoteChange={setVendorNote}
+        onAddVendor={handleAddVendor}
+      />
+    </>
+  )}
+</div>
 
           <div className="space-y-8">
             <VisionNotesSection
@@ -417,6 +436,7 @@ export const ClientProfile: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

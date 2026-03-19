@@ -15,10 +15,10 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 type UserRole = 'planner' | 'couple';
 
 function AppContent() {
-  const userRole: UserRole = 'planner'; // Demo: change to 'couple' to see couple view
+  const userRole: UserRole = 'planner';
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-cream overflow-x-hidden">
       <Navigation userRole={userRole} />
       <Routes>
         <Route path="/" element={<Dashboard userRole={userRole} />} />
@@ -27,7 +27,7 @@ function AppContent() {
         <Route path="/moodboard" element={<MoodBoard userRole={userRole} />} />
         <Route path="/messages" element={<MessagesPage userRole={userRole} />} />
         <Route path="/clients" element={<Clients userRole={userRole} />} />
-        <Route path="/clients/:id" element={<ClientProfile />} />
+        <Route path="/clients/:id" element={<ClientProfile userRole={userRole} />} />
       </Routes>
     </div>
   );

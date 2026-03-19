@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useWedding } from '../contexts/WeddingContext';
 import { DashboardSkeleton } from '../components/Skeleton';
-import { mockClients } from '../data/mockClients';
+import { MultiWeddingDashboard } from '../components/dashboard/MultiWeddingDashboard';
+import { multiWeddingDashboardData } from '../data/multiWeddingDashboardData';
 
 interface DashboardProps {
   userRole: 'planner' | 'couple';
@@ -39,114 +40,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
       };
     });
 
-  // Multi-wedding (planner) overview mock data
-  const vendorStatusByClient: Record<number, { vendorName: string; category: string; status: 'pending' | 'contacted' | 'booked' }[]> = {
-    1: [
-      { vendorName: 'Lighthouse Photography', category: 'photographer', status: 'booked' },
-      { vendorName: 'Petal & Fern', category: 'florist', status: 'contacted' },
-    ],
-    2: [
-      { vendorName: 'Crystal Catering Co.', category: 'caterer', status: 'pending' },
-    ],
-    3: [
-      { vendorName: 'Skyline Events', category: 'venue', status: 'booked' },
-    ],
-    4: [
-      { vendorName: 'Harmony DJs', category: 'music', status: 'pending' },
-    ],
-    5: [],
-    6: [
-      { vendorName: 'Golden Decor', category: 'decor', status: 'contacted' },
-    ],
-  };
-
-  const paymentStatusByClient: Record<number, { title: string; amount: number; status: 'paid' | 'partial' | 'unpaid'; dueDate: string }[]> = {
-    1: [
-      { title: 'Venue deposit', amount: 4000, status: 'paid', dueDate: '2024-02-15' },
-      { title: 'Floral deposit', amount: 1800, status: 'partial', dueDate: '2024-03-20' },
-    ],
-    2: [
-      { title: 'Catering deposit', amount: 6500, status: 'unpaid', dueDate: '2024-03-30' },
-    ],
-    3: [
-      { title: 'Photography balance', amount: 3000, status: 'paid', dueDate: '2024-05-01' },
-    ],
-    4: [
-      { title: 'DJ deposit', amount: 1500, status: 'unpaid', dueDate: '2024-04-10' },
-    ],
-    5: [],
-    6: [
-      { title: 'Decor balance', amount: 2200, status: 'partial', dueDate: '2024-04-05' },
-    ],
-  };
-
-  const milestoneByClient: Record<number, { title: string; dueDate: string; status: 'upcoming' | 'in progress' | 'completed'; note?: string }[]> = {
-    1: [
-      { title: 'Finalize florist', dueDate: '2024-03-25', status: 'in progress', note: 'Client reviewing sample bouquet' },
-      { title: 'Send invites', dueDate: '2024-03-30', status: 'upcoming' },
-    ],
-    2: [
-      { title: 'Confirm menu', dueDate: '2024-03-29', status: 'upcoming' },
-    ],
-    3: [
-      { title: 'Cake tasting', dueDate: '2024-03-24', status: 'completed' },
-    ],
-    4: [
-      { title: 'Music lineup', dueDate: '2024-04-05', status: 'in progress' },
-    ],
-    5: [],
-    6: [
-      { title: 'Seating chart', dueDate: '2024-03-28', status: 'upcoming' },
-    ],
-  };
-
-  const totalActiveWeddings = mockClients.length;
-  const pendingVendorItems = Object.values(vendorStatusByClient).reduce(
-    (sum, vendors) => sum + vendors.filter((vendor) => vendor.status === 'pending').length,
-    0
-  );
-  const paymentsDue = Object.values(paymentStatusByClient).reduce(
-    (sum, payments) => sum + payments.filter((payment) => payment.status !== 'paid').length,
-    0
-  );
-
-  const weddingsNeedingAttention = mockClients.filter((client) => {
-    const vendors = vendorStatusByClient[client.id] || [];
-    const payments = paymentStatusByClient[client.id] || [];
-    const milestones = milestoneByClient[client.id] || [];
-
-    const hasPendingVendor = vendors.some((v) => v.status === 'pending');
-    const hasUnpaidPayments = payments.some((p) => p.status !== 'paid');
-    const hasInProgressMilestones = milestones.some((m) => m.status === 'in progress');
-    const lowProgress = client.progress < 55;
-
-    return hasPendingVendor || hasUnpaidPayments || hasInProgressMilestones || lowProgress;
-  }).length;
-
-  const clientSummaryCards = mockClients.map((client) => {
-    const vendors = vendorStatusByClient[client.id] || [];
-    const payments = paymentStatusByClient[client.id] || [];
-    const milestones = milestoneByClient[client.id] || [];
-
-    const needsAttention =
-      vendors.some((v) => v.status === 'pending') ||
-      payments.some((p) => p.status !== 'paid') ||
-      milestones.some((m) => m.status === 'in progress') ||
-      client.progress < 55;
-
-    const flag = needsAttention
-      ? vendors.some((v) => v.status === 'pending')
-        ? 'Follow up on pending vendor'
-        : payments.some((p) => p.status !== 'paid')
-          ? 'Payment due'
-          : milestones.some((m) => m.status === 'in progress')
-            ? 'Milestone in progress'
-            : 'Review progress'
-      : 'On track';
-
-    return { ...client, attentionFlag: flag };
-  });
-
   const recentContracts = contracts.slice(0, 3).map((contract) => ({
     id: contract.id,
     vendor: contract.vendorName,
@@ -156,12 +49,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
     fileUrl: contract.fileUrl,
   }));
 
-  const stats = [
-    { label: 'Timeline Events', value: timelineEvents.length.toString(), color: 'bg-sand' },
-    { label: 'Documents', value: contracts.length.toString(), color: 'bg-blush' },
-    { label: 'Mood Board Items', value: moodBoardImages.length.toString(), color: 'bg-gold/10' },
-    { label: 'Days Until Wedding', value: calculateDaysUntil(wedding?.weddingDate), color: 'bg-slate/10' },
-  ];
+  const stats = userRole === 'planner'
+  ? [
+      { label: 'Timeline Events', value: timelineEvents.length.toString(), color: 'bg-sand' },
+      { label: 'Documents', value: contracts.length.toString(), color: 'bg-blush' },
+      { label: 'Mood Board Items', value: moodBoardImages.length.toString(), color: 'bg-gold/10' },
+      { label: 'Days Until Wedding', value: calculateDaysUntil(wedding?.weddingDate), color: 'bg-slate/10' },
+    ]
+  : [
+      { label: 'Days Until Wedding', value: calculateDaysUntil(wedding?.weddingDate), color: 'bg-sand' },
+      { label: 'Tasks Completed', value: timelineEvents.filter(e => e.completed).length.toString(), color: 'bg-blush' },
+      { label: 'Mood Board Ideas', value: moodBoardImages.length.toString(), color: 'bg-gold/10' },
+      { label: 'Documents Shared', value: contracts.length.toString(), color: 'bg-slate/10' },
+    ];
 
   const completedCount = timelineEvents.filter((e) => e.completed).length;
   const totalCount = timelineEvents.length;
@@ -171,13 +71,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
     <div className="min-h-screen bg-cream page-enter">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-sand to-cream border-b border-gold/20">
-        <div className="max-w-7xl mx-auto px-8 py-16 md:py-24">
-          <h1 className="text-5xl font-serif text-charcoal mb-4">
-            Welcome Back, {wedding?.coupleNames || 'Couple'} 💍
-          </h1>
-          <p className="text-lg text-slate max-w-2xl leading-relaxed">
-            Your wedding is coming together beautifully. Here's your planning status at a glance.
-          </p>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
+          <h1 className="text-3xl md:text-5xl font-serif text-charcoal mb-4 leading-tight">
+  {userRole === 'planner'
+    ? `Welcome Back, ${wedding?.coupleNames || 'Couple'} 💍`
+    : `${wedding?.coupleNames || 'Your Wedding'} ✨`}
+</h1>
+          <p className="text-base md:text-lg text-slate max-w-2xl leading-relaxed">
+  {userRole === 'planner'
+    ? "Your weddings are progressing. Here's your planning overview."
+    : "Your wedding is coming together beautifully. Here’s everything you need to know at a glance."}
+</p>
           {userRole === 'planner' && (
             <p className="text-sm text-slate mt-4 italic">
               ✨ Tip: Check in with vendors about pending contracts by Friday
@@ -186,68 +90,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
         </div>
       </div>
 {/* Demo Banner - Premium Vibe */}
-<div className="max-w-7xl mx-auto px-8 mt-6">
+<div className="max-w-7xl mx-auto px-4 md:px-8 mt-6">
   <div className="bg-yellow-50 text-yellow-900 px-6 py-3 rounded-lg mb-6 text-sm border border-yellow-200 text-center shadow-sm font-medium tracking-wide">
     This is a demo wedding portal showing how planners can share progress with couples.
   </div>
 </div>
       {/* Stats Grid */}
-      <div className="max-w-7xl mx-auto px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           {stats.map((stat, idx) => (
-            <div key={idx} className={`${stat.color} rounded-lg p-8 text-center`}>
-              <p className="text-4xl font-serif text-charcoal mb-2">{stat.value}</p>
+            <div key={idx} className={`${stat.color} rounded-lg p-6 md:p-8 text-center`}>
+              <p className="text-3xl md:text-4xl font-serif text-charcoal mb-2">{stat.value}</p>
               <p className="text-sm text-slate">{stat.label}</p>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="rounded-lg border border-gold/20 bg-white p-6">
-            <p className="text-sm text-slate uppercase tracking-wide">Total active weddings</p>
-            <p className="text-3xl font-serif text-charcoal">{totalActiveWeddings}</p>
-          </div>
-          <div className="rounded-lg border border-gold/20 bg-white p-6">
-            <p className="text-sm text-slate uppercase tracking-wide">Weddings needing attention</p>
-            <p className="text-3xl font-serif text-charcoal">{weddingsNeedingAttention}</p>
-          </div>
-          <div className="rounded-lg border border-gold/20 bg-white p-6">
-            <p className="text-sm text-slate uppercase tracking-wide">Pending vendor items</p>
-            <p className="text-3xl font-serif text-charcoal">{pendingVendorItems}</p>
-          </div>
-          <div className="rounded-lg border border-gold/20 bg-white p-6">
-            <p className="text-sm text-slate uppercase tracking-wide">Payments due</p>
-            <p className="text-3xl font-serif text-charcoal">{paymentsDue}</p>
-          </div>
-        </div>
-
-        <div className="mb-12">
-          <h2 className="text-2xl font-serif text-charcoal mb-4">Client Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {clientSummaryCards.map((client) => (
-              <div key={client.id} className="bg-white rounded-2xl border border-gold/20 p-5 shadow-sm">
-                <h3 className="font-medium text-charcoal text-lg">{client.coupleNames}</h3>
-                <p className="text-sm text-slate">{new Date(client.weddingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                <p className="text-sm text-slate">{client.location}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-slate">Progress</span>
-                  <span className="text-xs font-semibold text-charcoal">{client.progress}%</span>
-                </div>
-                <div className="w-full h-2 bg-sand rounded-full mt-1 overflow-hidden">
-                  <div className="h-2 bg-gold rounded-full" style={{ width: `${client.progress}%` }} />
-                </div>
-                <p className="mt-3 text-sm font-medium text-gold">{client.attentionFlag}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+       {userRole === 'planner' && (
+  <div className="mt-8">
+  <MultiWeddingDashboard items={multiWeddingDashboardData} />
+</div>
+)}
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-12 md:mb-16">
           {/* Upcoming Milestones */}
           <div className="lg:col-span-2 card">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-serif text-charcoal">📅 Upcoming Milestones</h2>
+              <h2 className="text-xl md:text-2xl font-serif text-charcoal">📅 Upcoming Milestones</h2>
               <Link to="/timeline" className="btn-secondary text-sm">View All</Link>
             </div>
 
@@ -256,7 +126,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
                 upcomingMilestones.map((milestone) => (
                   <div
                     key={milestone.id}
-                    className="flex items-center justify-between p-4 bg-sand rounded-lg hover:bg-taupe/10 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-sand rounded-lg hover:bg-taupe/10 transition-colors"
                   >
                     <div className="flex-1">
                       <h3 className="font-medium text-charcoal">{milestone.title}</h3>
@@ -278,7 +148,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
 
           {/* Quick Stats */}
           <div className="card">
-            <h2 className="text-2xl font-serif text-charcoal mb-8">✨ Planning Snapshot</h2>
+            <h2 className="text-xl md:text-2xl font-serif text-charcoal mb-6 md:mb-8">✨ Planning Snapshot</h2>
 
             <div className="space-y-6">
               <div>
@@ -314,12 +184,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
 
         {/* Vendor Contracts */}
         <div className="card mb-16">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-serif text-charcoal">📄 Vendor Contracts</h2>
+          <div className="flex items-center justify-between mb-6 md:mb-8">
+            <h2 className="text-xl md:text-2xl font-serif text-charcoal">📄 Vendor Contracts</h2>
             <Link to="/contracts" className="btn-secondary text-sm">View All</Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             {recentContracts.length > 0 ? (
               recentContracts.map((contract) => (
                 <div
@@ -349,8 +219,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
         </div>
 
         {/* Call to Action */}
-        <div className="bg-blush rounded-lg p-12 text-center">
-          <h3 className="text-2xl font-serif text-charcoal mb-4">Need Assistance?</h3>
+        <div className="bg-blush rounded-lg p-8 md:p-12 text-center">
+          <h3 className="text-xl md:text-2xl font-serif text-charcoal mb-4">
+  {userRole === 'planner' ? 'Need Assistance?' : 'Have a question?'}
+</h3>
           <p className="text-slate mb-6 max-w-2xl mx-auto">
             Our wedding planner is here to guide you through every step of the journey. Send a message
             anytime!

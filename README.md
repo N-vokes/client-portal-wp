@@ -140,7 +140,7 @@ This is the **MVP with Real Supabase Integration**. Currently implemented:
 To view the interface from different perspectives, edit `App.tsx`:
 
 ```tsx
-const [userRole] = useState<UserRole>('couple'); // Change to 'planner'
+const [userRole] = useState<UserRole>('planner'); // Change to 'planner'
 ```
 
 - **Couple**: Can view all content, limited editing on mood board
