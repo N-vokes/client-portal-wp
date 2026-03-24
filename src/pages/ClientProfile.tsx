@@ -273,11 +273,11 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
 
   if (!client) {
     return (
-      <div className="min-h-screen bg-cream page-enter flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-sm border border-gold/20 p-12 text-center max-w-lg">
-          <h1 className="text-3xl font-serif text-charcoal mb-4">Client not found</h1>
-          <p className="text-slate mb-6">The requested client profile was not found. Please select a valid client from the list.</p>
-          <Link to="/clients" className="btn-primary inline-block">Back to Clients</Link>
+      <div className="min-h-screen bg-cream page-enter flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gold/20 p-6 sm:p-8 lg:p-12 text-center max-w-lg mx-4">
+          <h1 className="text-2xl sm:text-3xl font-serif text-charcoal mb-3 sm:mb-4">Client not found</h1>
+<p className="text-sm sm:text-base text-slate mb-5 sm:mb-6">The requested client profile was not found. Please select a valid client from the list.</p>
+          <Link to="/clients" className="btn-primary inline-block w-full sm:w-auto">Back to Clients</Link>
         </div>
       </div>
     );
@@ -293,12 +293,12 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
       />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-  <div className="space-y-6 sm:space-y-8">
+  <div className="space-y-5 sm:space-y-8">
     {userRole === 'planner' && (
       <QuickActionsReminders reminders={reminders} />
     )}
 
-    <div className="bg-white rounded-2xl border border-gold/20 p-4 sm:p-6 lg:p-8 shadow-sm">
+    <div className="bg-white rounded-2xl border border-gold/20 p-4 sm:p-6 lg:p-7 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
             <div>
               <h2 className="text-xl font-serif text-charcoal mb-3">Wedding Date</h2>
@@ -310,17 +310,20 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
             </div>
           </div>
 
-          <div className="mt-6 sm:mt-8 border-t border-gold/20 pt-4 sm:pt-6">
+          <div className="mt-5 sm:mt-8 border-t border-gold/20 pt-4 sm:pt-6">
             <h2 className="text-xl sm:text-2xl font-serif text-charcoal mb-2 sm:mb-3">Planning Progress</h2>
-            
-              <span className="text-sm text-slate">{client.progress}% complete</span>
-              <span className="inline-flex items-center gap-2 text-xs font-semibold text-charcoal bg-sand px-3 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-gold" />
-                {client.progress > 80 ? 'Excellent' : client.progress > 50 ? 'Steady' : 'At risk'}
-              </span>
-            </div>
-            <div className="w-full bg-sand rounded-full h-3 overflow-hidden shadow-inner">
+
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+  <span className="text-sm text-slate">{client.progress}% complete</span>
+  <span className="inline-flex items-center gap-2 text-xs font-semibold text-charcoal bg-sand px-3 py-1 rounded-full w-fit">
+    <span className="w-2 h-2 rounded-full bg-gold" />
+    {client.progress > 80 ? 'Excellent' : client.progress > 50 ? 'Steady' : 'At risk'}
+  </span>
+</div>
+
+<div className="w-full bg-sand rounded-full h-3 overflow-hidden shadow-inner">
               <div className="bg-gold h-3 rounded-full transition-all" style={{ width: `${client.progress}%` }} />
+            </div>
             </div>
           </div>
         </div>
@@ -337,21 +340,21 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
           overallStatus={overallStatus}
         />
 
-        <div className="rounded-2xl border border-gold/20 bg-white p-4 sm:p-5 shadow-sm">
+        <div className="rounded-2xl border border-gold/20 bg-white p-4 sm:p-5 lg:p-6 shadow-sm">
           <p className="text-[11px] sm:text-xs text-slate uppercase tracking-wide mb-1">
   {userRole === 'planner' ? 'Next action' : 'What’s next'}
 </p>
-<p className="text-sm sm:text-base font-medium text-charcoal leading-relaxed">
+<p className="text-sm sm:text-base font-medium text-charcoal leading-relaxed break-words">
   {userRole === 'planner' ? nextAction : 'Your planner is keeping everything on track. Here is the next key focus for your wedding.'}
 </p>
         </div>
-<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3">
+<div className="mb-2 sm:mb-3">
         <div
-  className={`grid grid-cols-1 gap-6 lg:gap-8 ${
+  className={`grid grid-cols-1 gap-5 sm:gap-8 ${
     userRole === 'planner' ? 'lg:grid-cols-[2fr_1fr]' : ''
   }`}
 >
-          <div className="space-y-6 sm:space-y-8">
+          <div className="space-y-6 sm:space-y-7 lg:space-y-8">
   {userRole === 'planner' && (
     <>
       <NotesSection
@@ -392,7 +395,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
   )}
 </div>
 
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-7 lg:space-y-8">
             <VisionNotesSection
               visionNotes={visionNotes}
               visionTitle={visionTitle}
