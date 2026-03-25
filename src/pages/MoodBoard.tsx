@@ -12,6 +12,8 @@ export const MoodBoard: React.FC<MoodBoardProps> = ({ userRole }) => {
   const { moodBoardImages, deleteMoodBoardImage, loading } = useWedding();
   const { addToast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [sortMode, setSortMode] = useState<'priority' | 'newest'>('priority');
 const [uploading, setUploading] = useState(false);
 const [visionDescription, setVisionDescription] = useState('');
 const [lastUploadedVisionNote, setLastUploadedVisionNote] = useState('');
@@ -23,16 +25,16 @@ const [isEditingSelectedImage, setIsEditingSelectedImage] = useState(false);
 const [editedImageTitle, setEditedImageTitle] = useState('');
 const [editedImageNote, setEditedImageNote] = useState('');
 const [editedImageCategory, setEditedImageCategory] = useState('other');
+const [editedImageStatus, setEditedImageStatus] = useState('maybe');
 const [editableExistingImages, setEditableExistingImages] = useState<any[]>([]);
 const [imageComments, setImageComments] = useState<Record<string, any[]>>({});
 const [newComment, setNewComment] = useState('');
 const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 const [collapsedReplies, setCollapsedReplies] = useState<Record<string, boolean>>({});
-const [lastRepliedCommentId, setLastRepliedCommentId] = useState<string | null>(null);
 const [highlightedReplyId, setHighlightedReplyId] = useState<string | null>(null);
 const commentsEndRef = useRef<HTMLDivElement | null>(null);
 const highlightTimeoutRef = useRef<number | null>(null);
-const replyEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
+const replyRefs = useRef<Record<string, HTMLDivElement | null>>({});
 const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
 useEffect(() => {
   setEditableExistingImages(moodBoardImages);
@@ -82,15 +84,26 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  if (!lastRepliedCommentId) return;
+  if (!highlightedReplyId) return;
 
-  replyEndRefs.current[lastRepliedCommentId]?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'nearest',
+  const frame = window.requestAnimationFrame(() => {
+    replyRefs.current[highlightedReplyId]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
   });
 
-  setLastRepliedCommentId(null);
-}, [imageComments, lastRepliedCommentId]);
+  const timeout = window.setTimeout(() => {
+    setHighlightedReplyId((current) =>
+      current === highlightedReplyId ? null : current
+    );
+  }, 2200);
+
+  return () => {
+    window.cancelAnimationFrame(frame);
+    window.clearTimeout(timeout);
+  };
+}, [highlightedReplyId, imageComments]);
 
   const handleDelete = async (id: string) => {
   if (confirm('Are you sure you want to delete this image?')) {
@@ -117,11 +130,12 @@ const handleSaveSelectedImage = () => {
   if (!selectedImage) return;
 
   const updatedImage = {
-    ...selectedImage,
-    title: editedImageTitle.trim() || selectedImage.title,
-    notes: editedImageNote.trim(),
-    category: editedImageCategory,
-  };
+  ...selectedImage,
+  title: editedImageTitle.trim() || selectedImage.title,
+  notes: editedImageNote.trim(),
+  category: editedImageCategory,
+  status: editedImageStatus,
+};
 
   const isMockImage = selectedImage.id.startsWith('mock-');
 
@@ -139,6 +153,45 @@ const handleSaveSelectedImage = () => {
   setIsEditingSelectedImage(false);
 };
 
+const handleUpdateImageStatus = (
+  imageId: string,
+  nextStatus: 'love' | 'maybe' | 'pass'
+) => {
+  const updateImage = (img: any) =>
+    img.id === imageId ? { ...img, status: nextStatus } : img;
+
+  if (imageId.startsWith('mock-')) {
+    setMockUploadedImages((prev) => prev.map(updateImage));
+  } else {
+    setEditableExistingImages((prev) => prev.map(updateImage));
+  }
+
+  if (selectedImage?.id === imageId) {
+    setSelectedImage((prev: any) =>
+      prev ? { ...prev, status: nextStatus } : prev
+    );
+    setEditedImageStatus(nextStatus);
+  }
+};
+const handleResolveAndOpenNext = (nextStatus: 'love' | 'pass') => {
+  if (!selectedImage) return;
+
+  const currentImageId = selectedImage.id;
+  const nextImage = nextMaybeImage;
+
+  handleUpdateImageStatus(currentImageId, nextStatus);
+
+  if (nextImage && nextImage.id !== currentImageId) {
+    setNewComment('');
+    setReplyDrafts({});
+    setCollapsedReplies({});
+    setSelectedImage(nextImage);
+    setIsEditingSelectedImage(false);
+    return;
+  }
+
+  setIsEditingSelectedImage(false);
+};
  const handleCloseSelectedImage = () => {
   if (highlightTimeoutRef.current) {
     window.clearTimeout(highlightTimeoutRef.current);
@@ -148,9 +201,10 @@ const handleSaveSelectedImage = () => {
   setHighlightedCommentId(null);
   setIsEditingSelectedImage(false);
   setEditedImageTitle('');
-  setEditedImageNote('');
-  setEditedImageCategory('other');
-  setNewComment('');
+setEditedImageNote('');
+setEditedImageCategory('other');
+setEditedImageStatus('maybe');
+setNewComment('');
   setReplyDrafts({});
   setCollapsedReplies({});
   setSelectedImage(null);
@@ -235,7 +289,6 @@ const handleAddReply = (commentId: string) => {
   ...prev,
   [commentId]: false,
 }));
-setLastRepliedCommentId(commentId);
 setHighlightedReplyId(reply.id);
 };
 
@@ -264,6 +317,7 @@ const newMockImage = {
   url: previewUrl,
   category: uploadCategory,
   notes: visionDescription.trim(),
+  status: 'maybe',
   uploadedBy: userRole === 'planner' ? 'Planner' : 'Couple',
   uploadedDate: new Date().toISOString(),
 };
@@ -296,6 +350,13 @@ setUploadCategory('other');
     { id: 'other', label: 'Other', icon: '💫' },
   ];
 
+  const statusFilters = [
+  { id: 'all', label: 'All statuses', icon: '🪄' },
+  { id: 'love', label: 'Love it', icon: '💛' },
+  { id: 'maybe', label: 'Maybe', icon: '🤍' },
+  { id: 'pass', label: 'Not this', icon: '🖤' },
+];
+
   const categoryIcons: Record<string, string> = {
     flowers: '🌹',
     dress: '👗',
@@ -307,10 +368,68 @@ setUploadCategory('other');
 
   const allMoodBoardImages = [...mockUploadedImages, ...editableExistingImages];
 
-const filteredImages =
-  selectedCategory === 'all'
-    ? allMoodBoardImages
-    : allMoodBoardImages.filter((img) => img.category === selectedCategory);
+  const statusCounts = {
+  all: allMoodBoardImages.length,
+  love: allMoodBoardImages.filter((img) => (img.status || 'maybe') === 'love').length,
+  maybe: allMoodBoardImages.filter((img) => (img.status || 'maybe') === 'maybe').length,
+  pass: allMoodBoardImages.filter((img) => (img.status || 'maybe') === 'pass').length,
+};
+
+const maybeImages = allMoodBoardImages.filter(
+  (img) => (img.status || 'maybe') === 'maybe'
+);
+const currentMaybeIndex = selectedImage
+  ? maybeImages.findIndex((img) => img.id === selectedImage.id)
+  : -1;
+
+const nextMaybeImage =
+  currentMaybeIndex >= 0 ? maybeImages[currentMaybeIndex + 1] ?? null : null;
+
+const categoryCounts = {
+  all: allMoodBoardImages.length,
+  flowers: allMoodBoardImages.filter((img) => img.category === 'flowers').length,
+  dress: allMoodBoardImages.filter((img) => img.category === 'dress').length,
+  decor: allMoodBoardImages.filter((img) => img.category === 'decor').length,
+  colors: allMoodBoardImages.filter((img) => img.category === 'colors').length,
+  cake: allMoodBoardImages.filter((img) => img.category === 'cake').length,
+  other: allMoodBoardImages.filter((img) => img.category === 'other').length,
+};
+const alignmentScore =
+  statusCounts.all > 0 ? Math.round((statusCounts.love / statusCounts.all) * 100) : 0;
+const filteredImages = allMoodBoardImages
+  .filter((img) => {
+    const matchesCategory =
+      selectedCategory === 'all' || img.category === selectedCategory;
+
+    const matchesStatus =
+      selectedStatus === 'all' || (img.status || 'maybe') === selectedStatus;
+
+    return matchesCategory && matchesStatus;
+  })
+  .sort((a, b) => {
+    if (sortMode === 'newest') {
+      return (
+        new Date(b.uploadedDate).getTime() - new Date(a.uploadedDate).getTime()
+      );
+    }
+
+    const statusPriority: Record<string, number> = {
+      love: 0,
+      maybe: 1,
+      pass: 2,
+    };
+
+    const aPriority = statusPriority[a.status || 'maybe'] ?? 1;
+    const bPriority = statusPriority[b.status || 'maybe'] ?? 1;
+
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+
+    return (
+      new Date(b.uploadedDate).getTime() - new Date(a.uploadedDate).getTime()
+    );
+  });
 
     const latestDecisionComment = selectedImage
   ? [...(imageComments[selectedImage.id] || [])]
@@ -353,19 +472,21 @@ const filteredImages =
   {selectedImage && (
     <button
       onClick={() => {
-        if (isEditingSelectedImage) {
+  if (isEditingSelectedImage) {
+    setEditedImageTitle(selectedImage?.title || '');
+    setEditedImageNote(selectedImage?.notes || '');
+    setEditedImageCategory(selectedImage?.category || 'other');
+    setEditedImageStatus(selectedImage?.status || 'maybe');
+    setIsEditingSelectedImage(false);
+    return;
+  }
+
   setEditedImageTitle(selectedImage?.title || '');
   setEditedImageNote(selectedImage?.notes || '');
   setEditedImageCategory(selectedImage?.category || 'other');
-  setIsEditingSelectedImage(false);
-  return;
-}
-
-        setEditedImageTitle(selectedImage?.title || '');
-        setEditedImageNote(selectedImage?.notes || '');
-        setEditedImageCategory(selectedImage?.category || 'other');
-        setIsEditingSelectedImage(true);
-      }}
+  setEditedImageStatus(selectedImage?.status || 'maybe');
+  setIsEditingSelectedImage(true);
+}}
       className="inline-flex min-h-[36px] items-center justify-center rounded-lg px-3 py-1.5 text-sm text-slate hover:text-charcoal hover:bg-sand/60 transition-colors whitespace-nowrap"
     >
       {isEditingSelectedImage ? 'Cancel' : 'Edit'}
@@ -380,6 +501,39 @@ const filteredImages =
       Save
     </button>
   )}
+{selectedImage && (selectedImage.status || 'maybe') === 'maybe' && !isEditingSelectedImage && (
+  <button
+    type="button"
+    onClick={() => handleResolveAndOpenNext('love')}
+    className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-gold/20 bg-gold/10 px-3 py-1.5 text-sm font-medium text-charcoal hover:bg-gold/20 transition-colors whitespace-nowrap"
+  >
+    💛 Love &amp; Next
+  </button>
+)}
+
+{selectedImage && (selectedImage.status || 'maybe') === 'maybe' && !isEditingSelectedImage && (
+  <button
+    type="button"
+    onClick={() => handleResolveAndOpenNext('pass')}
+    className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-black/10 bg-black/5 px-3 py-1.5 text-sm font-medium text-charcoal hover:bg-black/10 transition-colors whitespace-nowrap"
+  >
+    🖤 Pass &amp; Next
+  </button>
+)}
+{selectedImage && nextMaybeImage && !isEditingSelectedImage && (
+  <button
+    type="button"
+    onClick={() => {
+      setNewComment('');
+      setReplyDrafts({});
+      setCollapsedReplies({});
+      setSelectedImage(nextMaybeImage);
+    }}
+    className="inline-flex min-h-[36px] items-center justify-center rounded-lg bg-charcoal px-3 py-1.5 text-sm font-medium text-cream hover:bg-slate transition-colors whitespace-nowrap"
+  >
+    Open next Maybe
+  </button>
+)}
 
   <button
   onClick={handleCloseSelectedImage}
@@ -401,7 +555,7 @@ const filteredImages =
           </div>
 
           <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex flex-col gap-2">
               {isEditingSelectedImage ? (
   <input
     type="text"
@@ -414,6 +568,7 @@ const filteredImages =
     {selectedImage.title}
   </h3>
 )}
+            <div className="flex flex-wrap items-center gap-2">
               {isEditingSelectedImage ? (
   <select
     value={editedImageCategory}
@@ -434,6 +589,27 @@ const filteredImages =
     <span>{categories.find((cat) => cat.id === selectedImage.category)?.label || 'Other'}</span>
   </span>
 )}
+
+{isEditingSelectedImage ? (
+  <select
+    value={editedImageStatus}
+    onChange={(e) => setEditedImageStatus(e.target.value)}
+    className="w-full sm:w-auto rounded-xl border border-gold/20 bg-white px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-gold/30"
+  >
+    <option value="love">💛 Love it</option>
+    <option value="maybe">🤍 Maybe</option>
+    <option value="pass">🖤 Not this</option>
+  </select>
+) : (
+  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-[11px] sm:text-xs text-charcoal border border-gold/15 w-fit">
+    {(selectedImage.status || 'maybe') === 'love'
+  ? '💛 Love it'
+  : (selectedImage.status || 'maybe') === 'pass'
+  ? '🖤 Not this'
+  : '🤍 Maybe'}
+  </span>
+)}
+          </div>
             </div>
 
             <div>
@@ -636,7 +812,13 @@ const filteredImages =
     </button>
   )}
   {(comment.replies || []).length > 0 && collapsedReplies[comment.id] && (
-  <div className="mt-3 space-y-2 rounded-xl border border-gold/15 bg-white/60 px-3 py-3">
+  <div
+  className={`mt-3 space-y-2 rounded-xl px-3 py-3 transition-all duration-300 ${
+    (comment.replies || []).some((reply: any) => reply.id === highlightedReplyId)
+      ? 'border border-gold/30 bg-gold/10 ring-1 ring-gold/20'
+      : 'border border-gold/15 bg-white/60'
+  }`}
+>
     <p className="text-xs sm:text-sm text-slate">
       {(comment.replies || []).length}{' '}
       {(comment.replies || []).length === 1 ? 'reply is hidden' : 'replies are hidden'}.
@@ -724,14 +906,21 @@ const filteredImages =
     {(comment.replies || []).length > 0 && !collapsedReplies[comment.id] && (
   <div className="mt-4 space-y-3 border-l border-gold/20 pl-4">
     {(comment.replies || []).map((reply: any) => (
-      <div
-  key={reply.id}
-  className={`rounded-xl px-4 py-3 transition-all duration-500 ease-out ${
-    highlightedReplyId === reply.id
-      ? 'border border-gold/30 bg-gold/10 ring-2 ring-gold/30'
-      : 'border border-gold/15 bg-white/70'
-  }`}
->
+  <div
+    key={reply.id}
+    ref={(el) => {
+      if (el) {
+        replyRefs.current[reply.id] = el;
+      } else {
+        delete replyRefs.current[reply.id];
+      }
+    }}
+    className={`rounded-xl px-4 py-3 transition-all duration-500 ease-out ${
+      highlightedReplyId === reply.id
+        ? 'border border-gold/30 bg-gold/10 ring-2 ring-gold/30'
+        : 'border border-gold/15 bg-white/70'
+    }`}
+  >
         <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] sm:text-xs font-medium ${
@@ -757,11 +946,6 @@ const filteredImages =
       </div>
     ))}
 
-    <div
-      ref={(el) => {
-        replyEndRefs.current[comment.id] = el;
-      }}
-    />
   </div>
 )}
       </div>
@@ -819,23 +1003,34 @@ const filteredImages =
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-12">
-          <div className="card text-center">
-            <p className="text-2xl sm:text-3xl lg:text-4xl font-serif text-charcoal mb-1 sm:mb-2">{allMoodBoardImages.length}</p>
-            <p className="text-xs sm:text-sm text-slate">Total Items</p>
-          </div>
-          <div className="card text-center">
-            <p className="text-2xl sm:text-3xl font-serif text-charcoal mb-1 sm:mb-2">2</p>
-            <p className="text-xs sm:text-sm text-slate">Contributors</p>
-          </div>
-          <div className="card text-center">
-            <p className="text-2xl sm:text-3xl font-serif text-charcoal mb-1 sm:mb-2">6</p>
-            <p className="text-xs sm:text-sm text-slate">Categories</p>
-          </div>
-          <div className="card text-center">
-            <p className="text-2xl sm:text-3xl font-serif text-charcoal mb-1 sm:mb-2">100%</p>
-            <p className="text-xs sm:text-sm text-slate">Aligned</p>
-          </div>
-        </div>
+  <div className="card text-center">
+    <p className="text-2xl sm:text-3xl lg:text-4xl font-serif text-charcoal mb-1 sm:mb-2">
+      {statusCounts.all}
+    </p>
+    <p className="text-xs sm:text-sm text-slate">Total Items</p>
+  </div>
+
+  <div className="card text-center">
+    <p className="text-2xl sm:text-3xl font-serif text-charcoal mb-1 sm:mb-2">
+      {statusCounts.love}
+    </p>
+    <p className="text-xs sm:text-sm text-slate">Love It</p>
+  </div>
+
+  <div className="card text-center">
+    <p className="text-2xl sm:text-3xl font-serif text-charcoal mb-1 sm:mb-2">
+      {statusCounts.pass}
+    </p>
+    <p className="text-xs sm:text-sm text-slate">Not This</p>
+  </div>
+
+  <div className="card text-center">
+    <p className="text-2xl sm:text-3xl font-serif text-charcoal mb-1 sm:mb-2">
+      {alignmentScore}%
+    </p>
+    <p className="text-xs sm:text-sm text-slate">Alignment</p>
+  </div>
+</div>
 
         {/* Filter Buttons */}
         <div className="mb-8 sm:mb-12 flex flex-wrap gap-2 sm:gap-3">
@@ -843,16 +1038,91 @@ const filteredImages =
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg transition-all duration-200 ${
+              className={`px-3 sm:px-4 py-2 text-sm rounded-lg transition-all duration-200 whitespace-nowrap ${
                 selectedCategory === cat.id
                   ? 'bg-charcoal text-cream font-medium'
                   : 'bg-sand text-charcoal hover:bg-taupe'
               }`}
             >
-              {cat.icon} {cat.label}
+              {cat.icon} {cat.label} ({categoryCounts[cat.id as keyof typeof categoryCounts]})
             </button>
           ))}
         </div>
+
+      <div className="mb-8 sm:mb-12 flex flex-wrap gap-2 sm:gap-3">
+  {statusFilters.map((status) => (
+    <button
+      key={status.id}
+      onClick={() => setSelectedStatus(status.id)}
+      className={`px-3 sm:px-4 py-2 text-sm rounded-lg transition-all duration-200 whitespace-nowrap ${
+        selectedStatus === status.id
+          ? 'bg-charcoal text-cream font-medium'
+          : 'bg-sand text-charcoal hover:bg-taupe'
+      }`}
+    >
+      {status.icon} {status.label} ({statusCounts[status.id as keyof typeof statusCounts]})
+    </button>
+  ))}
+</div>
+<div className="mb-6 flex flex-wrap items-center gap-2">
+  <span className="text-sm text-slate">Sort:</span>
+
+  <button
+    type="button"
+    onClick={() => setSortMode('priority')}
+    className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 ${
+      sortMode === 'priority'
+        ? 'bg-charcoal text-cream font-medium'
+        : 'bg-sand text-charcoal hover:bg-taupe'
+    }`}
+  >
+    Strongest first
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setSortMode('newest')}
+    className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 ${
+      sortMode === 'newest'
+        ? 'bg-charcoal text-cream font-medium'
+        : 'bg-sand text-charcoal hover:bg-taupe'
+    }`}
+  >
+    Newest first
+  </button>
+</div>
+
+{(selectedCategory !== 'all' || selectedStatus !== 'all') && (
+  <div className="mb-6 flex flex-wrap items-center gap-2 text-sm text-slate">
+    <span className="text-charcoal font-medium">Showing:</span>
+
+    {selectedCategory !== 'all' && (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-sand/70 px-3 py-1 text-xs text-charcoal">
+        {categories.find((cat) => cat.id === selectedCategory)?.icon}{' '}
+        {categories.find((cat) => cat.id === selectedCategory)?.label}
+      </span>
+    )}
+
+    {selectedStatus !== 'all' && (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs text-charcoal border border-gold/15">
+        {statusFilters.find((status) => status.id === selectedStatus)?.icon}{' '}
+        {statusFilters.find((status) => status.id === selectedStatus)?.label}
+      </span>
+    )}
+
+    <button
+      type="button"
+      onClick={() => {
+        setSelectedCategory('all');
+        setSelectedStatus('all');
+        setSortMode('priority');
+      }}
+      className="inline-flex items-center justify-center rounded-full border border-gold/20 bg-white px-3 py-1 text-xs font-medium text-charcoal hover:bg-sand/40 transition-colors"
+    >
+      Clear filters
+    </button>
+  </div>
+)}
 
 {filteredImages.length > 0 && lastUploadedVisionNote && (
   <div className="mb-6 sm:mb-8 rounded-xl border border-gold/20 bg-white p-4 sm:p-5 shadow-sm">
@@ -870,13 +1140,115 @@ const filteredImages =
     </p>
   </div>
 )}
+
+{maybeImages.length > 0 && (
+  <div className="mb-6 sm:mb-8 rounded-xl border border-gold/20 bg-white p-4 sm:p-5 shadow-sm">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+  <div>
+    <p className="text-[11px] sm:text-xs uppercase tracking-wide text-slate mb-1">
+      Needs review
+    </p>
+    <h3 className="text-sm sm:text-base font-medium text-charcoal">
+      {maybeImages.length} {maybeImages.length === 1 ? 'image still needs review' : 'images still need review'}
+    </h3>
+  </div>
+
+  <div className="flex flex-wrap items-center gap-2">
+  <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/15 bg-white/70 px-3 py-1 text-[11px] sm:text-xs text-charcoal w-fit">
+    🤍 Maybe
+  </span>
+
+  <button
+    type="button"
+    onClick={() => {
+      setSelectedCategory('all');
+      setSelectedStatus('maybe');
+      setSortMode('priority');
+    }}
+    className="inline-flex items-center justify-center rounded-full border border-gold/20 bg-white px-3 py-1 text-[11px] sm:text-xs font-medium text-charcoal hover:bg-sand/40 transition-colors"
+  >
+    View all Maybe
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      const firstMaybeImage = maybeImages[0];
+      if (!firstMaybeImage) return;
+
+      setNewComment('');
+      setReplyDrafts({});
+      setCollapsedReplies({});
+      setSelectedImage(firstMaybeImage);
+    }}
+    className="inline-flex items-center justify-center rounded-full border border-gold/20 bg-charcoal px-3 py-1 text-[11px] sm:text-xs font-medium text-cream hover:bg-slate transition-colors"
+  >
+    Open first Maybe
+  </button>
+</div>
+</div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+  {maybeImages.slice(0, 6).map((image) => (
+    <button
+      key={image.id}
+      type="button"
+      onClick={() => {
+        setNewComment('');
+        setReplyDrafts({});
+        setCollapsedReplies({});
+        setSelectedImage(image);
+      }}
+      className="flex items-center gap-3 rounded-xl border border-gold/15 bg-sand/40 p-2 text-left hover:bg-sand/60 transition-colors"
+    >
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white">
+        <img
+          src={image.url}
+          alt={image.title}
+          className="h-full w-full object-cover"
+        />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-charcoal truncate">
+          {image.title}
+        </p>
+        <p className="text-[11px] text-slate">
+          🤍 Needs review
+        </p>
+      </div>
+    </button>
+  ))}
+
+  {maybeImages.length > 6 && (
+    <div className="flex items-center justify-center rounded-xl border border-gold/15 bg-white/70 px-3 py-3 text-xs text-slate">
+      +{maybeImages.length - 6} more
+    </div>
+  )}
+</div>
+  </div>
+)}
+
         {/* Mood Board Gallery */}
         <div className="mb-16">
           {filteredImages.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 auto-rows-max">
             {filteredImages.map((image) => (
-              <div key={image.id} className="group cursor-pointer space-y-3 sm:space-y-4">
-                <div className="mood-image-hover relative overflow-hidden rounded-lg bg-sand aspect-square">
+              <div
+  key={image.id}
+  className={`group cursor-pointer space-y-3 sm:space-y-4 transition-all duration-300 ${
+    (image.status || 'maybe') === 'pass'
+      ? 'opacity-60'
+      : 'opacity-100'
+  }`}
+>
+                <div
+  className={`mood-image-hover relative overflow-hidden rounded-lg bg-sand aspect-square transition-all duration-300 ${
+    (image.status || 'maybe') === 'love'
+      ? 'ring-2 ring-gold/40 shadow-md'
+      : ''
+  }`}
+>
                   <img
                     src={image.url}
                     alt={image.title}
@@ -910,6 +1282,68 @@ const filteredImages =
 </span>
 </div>
 
+<div className="mb-2">
+  <span
+  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] sm:text-xs ${
+    (image.status || 'maybe') === 'love'
+      ? 'bg-gold/10 text-charcoal border border-gold/30'
+      : (image.status || 'maybe') === 'pass'
+      ? 'bg-black/5 text-slate border border-black/10'
+      : 'bg-white/70 text-charcoal border border-gold/15'
+  }`}
+>
+    {(image.status || 'maybe') === 'love'
+  ? '💛 Love it'
+  : (image.status || 'maybe') === 'pass'
+  ? '🖤 Not this'
+  : '🤍 Maybe'}
+  </span>
+</div>
+
+<div className="mb-3 flex items-center gap-2">
+  <button
+    type="button"
+    onClick={() => handleUpdateImageStatus(image.id, 'love')}
+    className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-colors ${
+      (image.status || 'maybe') === 'love'
+        ? 'border-gold/40 bg-gold/10'
+        : 'border-gold/15 bg-white/70 hover:bg-gold/5'
+    }`}
+    aria-label="Mark as Love it"
+    title="Love it"
+  >
+    💛
+  </button>
+
+  <button
+    type="button"
+    onClick={() => handleUpdateImageStatus(image.id, 'maybe')}
+    className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-colors ${
+      (image.status || 'maybe') === 'maybe'
+        ? 'border-gold/30 bg-white'
+        : 'border-gold/15 bg-white/70 hover:bg-sand/40'
+    }`}
+    aria-label="Mark as Maybe"
+    title="Maybe"
+  >
+    🤍
+  </button>
+
+  <button
+    type="button"
+    onClick={() => handleUpdateImageStatus(image.id, 'pass')}
+    className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-colors ${
+      (image.status || 'maybe') === 'pass'
+        ? 'border-black/20 bg-black/5'
+        : 'border-gold/15 bg-white/70 hover:bg-black/5'
+    }`}
+    aria-label="Mark as Not this"
+    title="Not this"
+  >
+    🖤
+  </button>
+</div>
+
                   <div className="mb-2 sm:mb-3">
   <p className="text-[11px] sm:text-xs uppercase tracking-wide text-slate mb-1">
     Vision note
@@ -939,12 +1373,18 @@ const filteredImages =
               <div className="inline-block mb-6">
                 <p className="text-6xl mb-4">✨</p>
               </div>
-              <h3 className="text-xl sm:text-2xl font-serif text-charcoal mb-3">Start Your Inspiration Board</h3>
+              <h3 className="text-xl sm:text-2xl font-serif text-charcoal mb-3">
+  {allMoodBoardImages.length > 0
+    ? 'No images match these filters'
+    : 'Start Your Inspiration Board'}
+</h3>
 <p className="text-sm sm:text-base text-slate max-w-md mx-auto mb-6 sm:mb-8">
-                {userRole === 'planner'
-  ? 'Begin collecting inspiration images and vision notes to align on the visual direction with your couple. Set the tone for your wedding.'
-  : 'Share your vision with your planner. Upload photos and add notes about the style, mood, or details you love.'}
-              </p>
+  {allMoodBoardImages.length > 0
+    ? 'Try changing the category or status filters to see more inspiration images.'
+    : userRole === 'planner'
+    ? 'Begin collecting inspiration images and vision notes to align on the visual direction with your couple. Set the tone for your wedding.'
+    : 'Share your vision with your planner. Upload photos and add notes about the style, mood, or details you love.'}
+</p>
               {userRole === 'planner' && (
                 <button className="btn-primary">📸 Upload Your Inspiration</button>
               )}
