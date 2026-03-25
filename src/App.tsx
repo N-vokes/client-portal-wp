@@ -11,6 +11,7 @@ import { ClientProfile } from './pages/ClientProfile';
 import { WeddingProvider } from './contexts/WeddingContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Analytics } from '@vercel/analytics/react';
 
 type UserRole = 'planner' | 'couple';
 
@@ -35,6 +36,7 @@ function AppContent() {
 
 function App() {
   return (
+    <>
     <ErrorBoundary>
       <ToastProvider>
         <WeddingProvider>
@@ -44,6 +46,9 @@ function App() {
         </WeddingProvider>
       </ToastProvider>
     </ErrorBoundary>
+
+          <Analytics />
+    </>
   );
 }
 
