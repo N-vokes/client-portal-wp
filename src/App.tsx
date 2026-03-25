@@ -16,7 +16,8 @@ import { Analytics } from '@vercel/analytics/react';
 type UserRole = 'planner' | 'couple';
 
 function AppContent() {
-  const userRole: UserRole = 'planner';
+  const userRole: UserRole =
+  (localStorage.getItem('role') as UserRole) || 'planner';
 
   return (
     <div className="min-h-screen bg-cream overflow-x-hidden">

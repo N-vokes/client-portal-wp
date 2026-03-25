@@ -36,23 +36,59 @@ const commentsEndRef = useRef<HTMLDivElement | null>(null);
 const highlightTimeoutRef = useRef<number | null>(null);
 const replyRefs = useRef<Record<string, HTMLDivElement | null>>({});
 const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
+const [isTransitioningImage, setIsTransitioningImage] = useState(false);
+const [decisionFlash, setDecisionFlash] = useState<'love' | 'pass' | null>(null);
+const [decisionLabel, setDecisionLabel] = useState<'love' | 'pass' | null>(null);
+const [lastAction, setLastAction] = useState<{
+  imageId: string;
+  previousStatus: 'love' | 'maybe' | 'pass';
+} | null>(null);
 useEffect(() => {
   setEditableExistingImages(moodBoardImages);
 }, [moodBoardImages]);
 
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && selectedImage) {
-      handleCloseSelectedImage();
-    }
-  };
+  if (!selectedImage) return;
+
+  // ❗ NEW: block shortcuts if typing in inputs/textarea
+  // Close modal
+if (e.key === 'Escape') {
+  handleCloseSelectedImage();
+  return;
+}
+
+const target = e.target as HTMLElement;
+const isInsideTextInput = !!target.closest('input, textarea, [contenteditable="true"]');
+const isInsideSelect = !!target.closest('select');
+
+if (isInsideTextInput || isInsideSelect) return;
+
+  // ❗ block when editing
+  if (isEditingSelectedImage) return;
+
+  // ❗ block during transition
+  if (isTransitioningImage) return;
+
+  // Only allow for Maybe items
+  const isMaybe = (selectedImage.status || 'maybe') === 'maybe';
+  if (!isMaybe) return;
+
+  if (e.key === 'ArrowRight') {
+    handleResolveAndOpenNext('love');
+  }
+
+  if (e.key === 'ArrowLeft') {
+    handleResolveAndOpenNext('pass');
+  }
+};
 
   window.addEventListener('keydown', handleKeyDown);
 
   return () => {
     window.removeEventListener('keydown', handleKeyDown);
   };
-}, [selectedImage]);
+}, [selectedImage, isEditingSelectedImage, isTransitioningImage]);
 
 useEffect(() => {
   if (!selectedImage) return;
@@ -157,6 +193,7 @@ const handleUpdateImageStatus = (
   imageId: string,
   nextStatus: 'love' | 'maybe' | 'pass'
 ) => {
+  setLastAction(null);
   const updateImage = (img: any) =>
     img.id === imageId ? { ...img, status: nextStatus } : img;
 
@@ -173,25 +210,68 @@ const handleUpdateImageStatus = (
     setEditedImageStatus(nextStatus);
   }
 };
+
+const openImageWithTransition = (nextImage: any) => {
+  if (!nextImage) return;
+  if (isTransitioningImage) return;
+
+  setIsTransitioningImage(true);
+
+  window.setTimeout(() => {
+    setNewComment('');
+    setReplyDrafts({});
+    setCollapsedReplies({});
+    setSelectedImage(nextImage);
+    setIsEditingSelectedImage(false);
+
+    window.setTimeout(() => {
+      setIsTransitioningImage(false);
+    }, 120);
+  }, 140);
+};
+
 const handleResolveAndOpenNext = (nextStatus: 'love' | 'pass') => {
   if (!selectedImage) return;
 
   const currentImageId = selectedImage.id;
   const nextImage = nextMaybeImage;
 
-  handleUpdateImageStatus(currentImageId, nextStatus);
+  const previousStatus = selectedImage.status || 'maybe';
+
+handleUpdateImageStatus(currentImageId, nextStatus);
+setDecisionFlash(nextStatus);
+setDecisionLabel(nextStatus);
+window.setTimeout(() => {
+  setDecisionFlash(null);
+}, 180);
+
+window.setTimeout(() => {
+  setDecisionLabel(null);
+}, 1500);
+
+setLastAction({
+  imageId: selectedImage.id,
+  previousStatus,
+});
+
+addToast(
+  nextStatus === 'love'
+    ? 'Marked as Love 💛'
+    : 'Marked as Not this 🖤',
+  'success'
+);
 
   if (nextImage && nextImage.id !== currentImageId) {
-    setNewComment('');
-    setReplyDrafts({});
-    setCollapsedReplies({});
-    setSelectedImage(nextImage);
-    setIsEditingSelectedImage(false);
+    openImageWithTransition(nextImage);
     return;
   }
 
   setIsEditingSelectedImage(false);
+
+// 👇 NEW: if no more maybe images, close modal
+handleCloseSelectedImage();
 };
+
  const handleCloseSelectedImage = () => {
   if (highlightTimeoutRef.current) {
     window.clearTimeout(highlightTimeoutRef.current);
@@ -199,6 +279,8 @@ const handleResolveAndOpenNext = (nextStatus: 'love' | 'pass') => {
   }
 
   setHighlightedCommentId(null);
+  setIsTransitioningImage(false);
+  setLastAction(null);
   setIsEditingSelectedImage(false);
   setEditedImageTitle('');
 setEditedImageNote('');
@@ -255,6 +337,29 @@ const handleToggleDecision = (commentId: string) => {
         : comment
     ),
   }));
+};
+
+const handleUndoLastAction = () => {
+  if (!lastAction) return;
+
+  handleUpdateImageStatus(lastAction.imageId, lastAction.previousStatus);
+
+  const restoredImage = allMoodBoardImages.find(
+    (img) => img.id === lastAction.imageId
+  );
+
+  if (restoredImage) {
+    setNewComment('');
+    setReplyDrafts({});
+    setCollapsedReplies({});
+    setSelectedImage({
+      ...restoredImage,
+      status: lastAction.previousStatus,
+    });
+    setIsEditingSelectedImage(false);
+  }
+
+  setLastAction(null);
 };
 
 const handleAddReply = (commentId: string) => {
@@ -378,12 +483,19 @@ setUploadCategory('other');
 const maybeImages = allMoodBoardImages.filter(
   (img) => (img.status || 'maybe') === 'maybe'
 );
+
 const currentMaybeIndex = selectedImage
   ? maybeImages.findIndex((img) => img.id === selectedImage.id)
   : -1;
 
 const nextMaybeImage =
   currentMaybeIndex >= 0 ? maybeImages[currentMaybeIndex + 1] ?? null : null;
+
+const isReviewingMaybe = currentMaybeIndex !== -1;
+const reviewPosition = currentMaybeIndex + 1;
+const totalMaybeImages = maybeImages.length;
+const reviewProgressPercent =
+  totalMaybeImages > 0 ? (reviewPosition / totalMaybeImages) * 100 : 0;
 
 const categoryCounts = {
   all: allMoodBoardImages.length,
@@ -450,6 +562,10 @@ const filteredImages = allMoodBoardImages
             Bring your vision to life by collecting and sharing inspiration. Every image tells part of your
             wedding story.
           </p>
+
+          <p className="text-xs sm:text-sm text-slate mt-2">
+  Demo preview — showing how planners and couples collaborate on visual decisions.
+</p>
         </div>
         {selectedImage && (
   <div className="fixed inset-0 z-50 px-4 py-6 overflow-y-auto">
@@ -465,77 +581,64 @@ const filteredImages = allMoodBoardImages
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-2xl max-h-[90vh] rounded-2xl bg-white shadow-xl overflow-hidden my-auto flex flex-col animate-modal-enter"
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gold/20">
-  <h2 className="text-lg sm:text-xl font-serif text-charcoal">Image Details</h2>
+        <div className="flex flex-col gap-3 px-4 sm:px-6 py-4 border-b border-gold/20">
+  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-w-0">
+      <h2 className="text-lg sm:text-xl font-serif text-charcoal">Image Details</h2>
 
-  <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 shrink-0">
-  {selectedImage && (
-    <button
-      onClick={() => {
-  if (isEditingSelectedImage) {
-    setEditedImageTitle(selectedImage?.title || '');
-    setEditedImageNote(selectedImage?.notes || '');
-    setEditedImageCategory(selectedImage?.category || 'other');
-    setEditedImageStatus(selectedImage?.status || 'maybe');
-    setIsEditingSelectedImage(false);
-    return;
-  }
+      {userRole === 'planner' &&
+  isReviewingMaybe &&
+  !isEditingSelectedImage && (
+        <div className="mt-2 max-w-xs sm:max-w-sm">
+          <p className="text-xs sm:text-sm text-slate">
+            Reviewing Maybe {reviewPosition} of {totalMaybeImages}
+          </p>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-sand/80">
+            <div
+              className="h-full rounded-full bg-charcoal transition-all duration-300"
+              style={{ width: `${reviewProgressPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
 
-  setEditedImageTitle(selectedImage?.title || '');
-  setEditedImageNote(selectedImage?.notes || '');
-  setEditedImageCategory(selectedImage?.category || 'other');
-  setEditedImageStatus(selectedImage?.status || 'maybe');
-  setIsEditingSelectedImage(true);
-}}
-      className="inline-flex min-h-[36px] items-center justify-center rounded-lg px-3 py-1.5 text-sm text-slate hover:text-charcoal hover:bg-sand/60 transition-colors whitespace-nowrap"
-    >
-      {isEditingSelectedImage ? 'Cancel' : 'Edit'}
-    </button>
-  )}
-
-  {isEditingSelectedImage && (
-    <button
-      onClick={handleSaveSelectedImage}
-      className="inline-flex min-h-[36px] items-center justify-center rounded-lg bg-charcoal/95 px-3 py-1.5 text-sm font-medium text-cream hover:bg-charcoal transition-colors whitespace-nowrap"
-    >
-      Save
-    </button>
-  )}
-{selectedImage && (selectedImage.status || 'maybe') === 'maybe' && !isEditingSelectedImage && (
+    <div className="flex flex-wrap items-stretch gap-2 sm:justify-end">
+  {userRole === 'planner' && selectedImage && (
   <button
-    type="button"
-    onClick={() => handleResolveAndOpenNext('love')}
-    className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-gold/20 bg-gold/10 px-3 py-1.5 text-sm font-medium text-charcoal hover:bg-gold/20 transition-colors whitespace-nowrap"
-  >
-    💛 Love &amp; Next
-  </button>
-)}
-
-{selectedImage && (selectedImage.status || 'maybe') === 'maybe' && !isEditingSelectedImage && (
-  <button
-    type="button"
-    onClick={() => handleResolveAndOpenNext('pass')}
-    className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-black/10 bg-black/5 px-3 py-1.5 text-sm font-medium text-charcoal hover:bg-black/10 transition-colors whitespace-nowrap"
-  >
-    🖤 Pass &amp; Next
-  </button>
-)}
-{selectedImage && nextMaybeImage && !isEditingSelectedImage && (
-  <button
-    type="button"
     onClick={() => {
-      setNewComment('');
-      setReplyDrafts({});
-      setCollapsedReplies({});
-      setSelectedImage(nextMaybeImage);
+      if (isEditingSelectedImage) {
+        setEditedImageTitle(selectedImage?.title || '');
+        setEditedImageNote(selectedImage?.notes || '');
+        setEditedImageCategory(selectedImage?.category || 'other');
+        setEditedImageStatus(selectedImage?.status || 'maybe');
+        setIsEditingSelectedImage(false);
+        return;
+      }
+
+      setEditedImageTitle(selectedImage?.title || '');
+      setEditedImageNote(selectedImage?.notes || '');
+      setEditedImageCategory(selectedImage?.category || 'other');
+      setEditedImageStatus(selectedImage?.status || 'maybe');
+      setLastAction(null);
+      setIsEditingSelectedImage(true);
     }}
-    className="inline-flex min-h-[36px] items-center justify-center rounded-lg bg-charcoal px-3 py-1.5 text-sm font-medium text-cream hover:bg-slate transition-colors whitespace-nowrap"
+    className="inline-flex min-h-[36px] items-center justify-center rounded-lg px-3 py-1.5 text-sm text-slate hover:text-charcoal hover:bg-sand/60 transition-colors whitespace-nowrap"
   >
-    Open next Maybe
+    {isEditingSelectedImage ? 'Cancel' : 'Edit'}
   </button>
 )}
 
+  {userRole === 'planner' && isEditingSelectedImage && (
   <button
+    onClick={handleSaveSelectedImage}
+    className="inline-flex min-h-[36px] items-center justify-center rounded-lg bg-charcoal/95 px-3 py-1.5 text-sm font-medium text-cream hover:bg-charcoal transition-colors whitespace-nowrap"
+  >
+    Save
+  </button>
+)}
+
+    <button
   onClick={handleCloseSelectedImage}
   
   className="inline-flex min-h-[36px] items-center justify-center rounded-lg px-3 py-1.5 text-sm text-slate hover:text-charcoal hover:bg-sand/60 transition-colors whitespace-nowrap"
@@ -543,11 +646,91 @@ const filteredImages = allMoodBoardImages
   Close
 </button>
 </div>
+  </div>
 </div>
 
-        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[70vh]">
-          <div className="overflow-hidden rounded-2xl bg-sand">
-            <img
+        <div className="overflow-y-auto max-h-[70vh]">
+  {userRole === 'planner' &&
+  selectedImage &&
+  (selectedImage.status || 'maybe') === 'maybe' &&
+  !isEditingSelectedImage && (
+    <div className="border-b border-gold/15 bg-sand/35 px-4 sm:px-6 py-3">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="space-y-1">
+  <p className="text-xs sm:text-sm text-slate">
+    Decide this image and continue the review flow.
+  </p>
+  <p className="text-[11px] sm:text-xs text-slate/80">
+    Shortcut: ← Pass · → Love
+  </p>
+</div>
+
+          {nextMaybeImage && (
+            <button
+  type="button"
+  onClick={() => openImageWithTransition(nextMaybeImage)}
+  disabled={isTransitioningImage}
+  className="inline-flex min-h-[32px] items-center justify-center rounded-md px-2.5 py-1 text-xs sm:text-sm text-slate hover:text-charcoal hover:bg-white/70 transition-colors whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+>
+  Skip to next Maybe
+</button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+  type="button"
+  onClick={() => handleResolveAndOpenNext('love')}
+  disabled={isTransitioningImage}
+  className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-gold/20 bg-gold/10 px-4 py-2 text-sm font-medium text-charcoal hover:bg-gold/20 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+>
+  💛 Love &amp; Next
+</button>
+
+          <button
+  type="button"
+  onClick={() => handleResolveAndOpenNext('pass')}
+  disabled={isTransitioningImage}
+  className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-black/10 bg-black/5 px-4 py-2 text-sm font-medium text-charcoal hover:bg-black/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+>
+  🖤 Pass &amp; Next
+</button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  <div
+  className={`p-4 sm:p-6 space-y-4 transition-all duration-200 ${
+    isTransitioningImage ? 'opacity-60 translate-y-1' : 'opacity-100 translate-y-0'
+  }`}
+>
+          <div className="relative overflow-hidden rounded-2xl bg-sand">
+            {decisionLabel && (
+  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+    <div
+      className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium shadow-sm transition-all duration-300 ${
+        decisionLabel === 'love'
+          ? 'bg-gold text-charcoal'
+          : 'bg-charcoal text-cream'
+      }`}
+    >
+      {decisionLabel === 'love' ? 'Saved as Love 💛' : 'Marked as Not this 🖤'}
+    </div>
+  </div>
+)}
+  {decisionFlash && (
+    <div
+      className={`absolute inset-0 z-10 transition-opacity duration-150 ${
+        decisionFlash === 'love'
+          ? 'bg-gold/30'
+          : 'bg-black/20'
+      }`}
+    />
+  )}
+
+  <img
               src={selectedImage.url}
               alt={selectedImage.title}
               className="w-full max-h-[50vh] object-contain"
@@ -656,6 +839,8 @@ const filteredImages = allMoodBoardImages
       </span>
     </div>
   </div>
+        </div>
+
 
   <p className="text-[11px] sm:text-xs text-slate">
     Decision comments are shown first to keep key planning choices easy to find.
@@ -961,6 +1146,18 @@ const filteredImages = allMoodBoardImages
   </p>
 </div>
   )}
+  {lastAction && (
+    <div className="flex justify-end">
+      <button
+        type="button"
+        onClick={handleUndoLastAction}
+        className="inline-flex items-center justify-center rounded-lg border border-gold/20 bg-white px-3 py-1.5 text-xs sm:text-sm text-charcoal hover:bg-sand/40 transition-colors"
+      >
+        Undo last decision
+      </button>
+    </div>
+  )}
+
   <div className="pt-3 mt-1 border-t border-gold/10 space-y-3">
   <label className="block">
     <span className="text-[11px] sm:text-xs uppercase tracking-wide text-slate mb-2 block">
@@ -1002,7 +1199,8 @@ const filteredImages = allMoodBoardImages
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-12">
+        {userRole === 'planner' && (
+  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-12">
   <div className="card text-center">
     <p className="text-2xl sm:text-3xl lg:text-4xl font-serif text-charcoal mb-1 sm:mb-2">
       {statusCounts.all}
@@ -1030,10 +1228,12 @@ const filteredImages = allMoodBoardImages
     </p>
     <p className="text-xs sm:text-sm text-slate">Alignment</p>
   </div>
-</div>
+  </div>
+)}
 
         {/* Filter Buttons */}
-        <div className="mb-8 sm:mb-12 flex flex-wrap gap-2 sm:gap-3">
+        {userRole === 'planner' && (
+  <div className="mb-8 sm:mb-12 flex flex-wrap gap-2 sm:gap-3">
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -1047,9 +1247,11 @@ const filteredImages = allMoodBoardImages
               {cat.icon} {cat.label} ({categoryCounts[cat.id as keyof typeof categoryCounts]})
             </button>
           ))}
-        </div>
+          </div>
+)}
 
-      <div className="mb-8 sm:mb-12 flex flex-wrap gap-2 sm:gap-3">
+      {userRole === 'planner' && (
+  <div className="mb-8 sm:mb-12 flex flex-wrap gap-2 sm:gap-3">
   {statusFilters.map((status) => (
     <button
       key={status.id}
@@ -1063,7 +1265,9 @@ const filteredImages = allMoodBoardImages
       {status.icon} {status.label} ({statusCounts[status.id as keyof typeof statusCounts]})
     </button>
   ))}
-</div>
+  </div>
+)}
+
 <div className="mb-6 flex flex-wrap items-center gap-2">
   <span className="text-sm text-slate">Sort:</span>
 
@@ -1076,7 +1280,7 @@ const filteredImages = allMoodBoardImages
         : 'bg-sand text-charcoal hover:bg-taupe'
     }`}
   >
-    Strongest first
+    Favorites first
   </button>
 
   <button
@@ -1088,7 +1292,7 @@ const filteredImages = allMoodBoardImages
         : 'bg-sand text-charcoal hover:bg-taupe'
     }`}
   >
-    Newest first
+    Recently added
   </button>
 </div>
 
@@ -1121,7 +1325,7 @@ const filteredImages = allMoodBoardImages
     >
       Clear filters
     </button>
-  </div>
+      </div>
 )}
 
 {filteredImages.length > 0 && lastUploadedVisionNote && (
@@ -1141,8 +1345,10 @@ const filteredImages = allMoodBoardImages
   </div>
 )}
 
-{maybeImages.length > 0 && (
+{userRole === 'planner' && allMoodBoardImages.length > 0 && (
   <div className="mb-6 sm:mb-8 rounded-xl border border-gold/20 bg-white p-4 sm:p-5 shadow-sm">
+    {userRole === 'planner' && maybeImages.length > 0 ? (
+  <>
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
   <div>
     <p className="text-[11px] sm:text-xs uppercase tracking-wide text-slate mb-1">
@@ -1226,6 +1432,40 @@ const filteredImages = allMoodBoardImages
     </div>
   )}
 </div>
+  </>
+    ) : (
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="text-[11px] sm:text-xs uppercase tracking-wide text-slate mb-1">
+            Review complete
+          </p>
+          <h3 className="text-sm sm:text-base font-medium text-charcoal">
+            All inspiration images have been reviewed
+          </h3>
+          <p className="mt-1 text-xs sm:text-sm text-slate">
+            Everything is now sorted into Love it or Not this.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/15 bg-gold/10 px-3 py-1 text-[11px] sm:text-xs text-charcoal w-fit">
+            ✓ No Maybes left
+          </span>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCategory('all');
+              setSelectedStatus('love');
+              setSortMode('priority');
+            }}
+            className="inline-flex items-center justify-center rounded-full border border-gold/20 bg-white px-3 py-1 text-[11px] sm:text-xs font-medium text-charcoal hover:bg-sand/40 transition-colors"
+          >
+            View Love it
+          </button>
+        </div>
+      </div>
+    )}
   </div>
 )}
 
@@ -1293,14 +1533,15 @@ const filteredImages = allMoodBoardImages
   }`}
 >
     {(image.status || 'maybe') === 'love'
-  ? '💛 Love it'
+  ? userRole === 'planner' ? '💛 Love it' : '💛'
   : (image.status || 'maybe') === 'pass'
-  ? '🖤 Not this'
-  : '🤍 Maybe'}
+  ? userRole === 'planner' ? '🖤 Not this' : '🖤'
+  : userRole === 'planner' ? '🤍 Maybe' : '🤍'}
   </span>
 </div>
 
-<div className="mb-3 flex items-center gap-2">
+{userRole === 'planner' && (
+  <div className="mb-3 flex items-center gap-2">
   <button
     type="button"
     onClick={() => handleUpdateImageStatus(image.id, 'love')}
@@ -1342,7 +1583,8 @@ const filteredImages = allMoodBoardImages
   >
     🖤
   </button>
-</div>
+  </div>
+)}
 
                   <div className="mb-2 sm:mb-3">
   <p className="text-[11px] sm:text-xs uppercase tracking-wide text-slate mb-1">
