@@ -3,9 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 
 interface NavigationProps {
   userRole: 'planner' | 'couple';
+  onBackToEntry: () => void;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ userRole }) => {
+export const Navigation: React.FC<NavigationProps> = ({ userRole, onBackToEntry }) => {
   const location = useLocation();
 
   const navItems = [
@@ -52,11 +53,21 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole }) => {
           ))}
         </ul>
 
-        {/* User Info */}
-        <div className="text-left md:text-right text-sm self-start md:self-auto">
-          <p className="text-charcoal font-medium break-words">Demo Wedding - Sarah & Michael</p>
-          <p className="text-slate text-xs">{userRole === 'planner' ? 'Planner' : 'Couple'}</p>
-        </div>
+        {/* User Info + Switch View */}
+<div className="flex flex-col items-start gap-2 text-left md:items-end md:text-right text-sm self-start md:self-auto">
+  <div>
+    <p className="text-charcoal font-medium break-words">Demo Wedding - Sarah & Michael</p>
+    <p className="text-slate text-xs">{userRole === 'planner' ? 'Planner' : 'Couple'}</p>
+  </div>
+
+  <button
+    type="button"
+    onClick={onBackToEntry}
+    className="inline-flex items-center justify-center rounded-full border border-gold/20 bg-white px-3 py-1 text-xs sm:text-sm text-charcoal hover:bg-sand/40 transition-colors"
+  >
+    Switch View
+  </button>
+</div>
       </div>
     </nav>
   );

@@ -32,6 +32,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
       const daysUntil = Math.ceil(
         (new Date(event.date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
       );
+
       return {
         id: event.id,
         title: event.title,
@@ -49,23 +50,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
     fileUrl: contract.fileUrl,
   }));
 
-  const stats = userRole === 'planner'
-  ? [
-      { label: 'Timeline Events', value: timelineEvents.length.toString(), color: 'bg-sand' },
-      { label: 'Documents', value: contracts.length.toString(), color: 'bg-blush' },
-      { label: 'Mood Board Items', value: moodBoardImages.length.toString(), color: 'bg-gold/10' },
-      { label: 'Days Until Wedding', value: calculateDaysUntil(wedding?.weddingDate), color: 'bg-slate/10' },
-    ]
-  : [
-      { label: 'Days Until Wedding', value: calculateDaysUntil(wedding?.weddingDate), color: 'bg-sand' },
-      { label: 'Tasks Completed', value: timelineEvents.filter(e => e.completed).length.toString(), color: 'bg-blush' },
-      { label: 'Mood Board Ideas', value: moodBoardImages.length.toString(), color: 'bg-gold/10' },
-      { label: 'Documents Shared', value: contracts.length.toString(), color: 'bg-slate/10' },
-    ];
+  const plannerStats = [
+    { label: 'Timeline Events', value: timelineEvents.length.toString(), color: 'bg-sand' },
+    { label: 'Documents', value: contracts.length.toString(), color: 'bg-blush' },
+    { label: 'Mood Board Items', value: moodBoardImages.length.toString(), color: 'bg-gold/10' },
+    { label: 'Days Until Wedding', value: calculateDaysUntil(wedding?.weddingDate), color: 'bg-slate/10' },
+  ];
+
+  const coupleStats = [
+    { label: 'Days Until Wedding', value: calculateDaysUntil(wedding?.weddingDate), color: 'bg-sand' },
+    { label: 'Tasks Completed', value: timelineEvents.filter((e) => e.completed).length.toString(), color: 'bg-blush' },
+    { label: 'Mood Board Ideas', value: moodBoardImages.length.toString(), color: 'bg-gold/10' },
+    { label: 'Documents Shared', value: contracts.length.toString(), color: 'bg-slate/10' },
+  ];
+
+  const stats = userRole === 'planner' ? plannerStats : coupleStats;
 
   const completedCount = timelineEvents.filter((e) => e.completed).length;
   const totalCount = timelineEvents.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const primaryAction =
+    userRole === 'planner'
+      ? {
+          title: 'What would you like to review next?',
+          text: 'Keep momentum by checking upcoming milestones, reviewing contracts, or guiding clients through inspiration decisions.',
+          buttonLabel: 'Open Mood Board',
+          buttonLink: '/moodboard',
+        }
+      : {
+          title: 'What would you like to look at next?',
+          text: 'You can explore inspiration, review shared documents, and stay aligned on what feels right for your wedding.',
+          buttonLabel: 'Open Mood Board',
+          buttonLink: '/moodboard',
+        };
 
   return (
     <div className="min-h-screen bg-cream page-enter">
@@ -73,30 +91,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
       <div className="bg-gradient-to-br from-sand to-cream border-b border-gold/20">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
           <h1 className="text-3xl md:text-5xl font-serif text-charcoal mb-4 leading-tight">
-  {userRole === 'planner'
-    ? `Welcome Back, ${wedding?.coupleNames || 'Couple'} 💍`
-    : `${wedding?.coupleNames || 'Your Wedding'} ✨`}
-</h1>
+            {userRole === 'planner'
+              ? `Welcome back — ${wedding?.coupleNames || 'Demo Couple'} 💍`
+              : `${wedding?.coupleNames || 'Your Wedding'} ✨`}
+          </h1>
+
           <p className="text-base md:text-lg text-slate max-w-2xl leading-relaxed">
-  {userRole === 'planner'
-    ? "Your weddings are progressing. Here's your planning overview."
-    : "Your wedding is coming together beautifully. Here’s everything you need to know at a glance."}
-</p>
-          {userRole === 'planner' && (
-            <p className="text-sm text-slate mt-4 italic">
-              ✨ Tip: Check in with vendors about pending contracts by Friday
-            </p>
-          )}
+            {userRole === 'planner'
+              ? 'A calm overview of what matters most right now across planning, progress, and shared decisions.'
+              : 'A calm view of your wedding plans, shared progress, and the details shaping your day.'}
+          </p>
+
+          <p className="text-xs sm:text-sm text-slate mt-4">
+            Demo preview — showing how planners and couples move through the experience from their own view.
+          </p>
         </div>
       </div>
-{/* Demo Banner - Premium Vibe */}
-<div className="max-w-7xl mx-auto px-4 md:px-8 mt-6">
-  <div className="bg-yellow-50 text-yellow-900 px-6 py-3 rounded-lg mb-6 text-sm border border-yellow-200 text-center shadow-sm font-medium tracking-wide">
-    This is a demo wedding portal showing how planners can share progress with couples.
-  </div>
-</div>
-      {/* Stats Grid */}
+
+      {/* Demo Banner */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-6">
+        <div className="bg-yellow-50 text-yellow-900 px-6 py-3 rounded-lg mb-6 text-sm border border-yellow-200 text-center shadow-sm font-medium tracking-wide">
+          This is a demo wedding portal showing how planners can share progress with couples.
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           {stats.map((stat, idx) => (
             <div key={idx} className={`${stat.color} rounded-lg p-6 md:p-8 text-center`}>
@@ -106,19 +126,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
           ))}
         </div>
 
-       {userRole === 'planner' && (
-  <div className="mt-8">
-  <MultiWeddingDashboard items={multiWeddingDashboardData} />
-</div>
-)}
+        {/* Planner Multi-Wedding Dashboard */}
+        {userRole === 'planner' && (
+          <div className="mt-8 mb-12">
+            <MultiWeddingDashboard items={multiWeddingDashboardData} />
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-12 md:mb-16">
           {/* Upcoming Milestones */}
           <div className="lg:col-span-2 card">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-xl md:text-2xl font-serif text-charcoal">📅 Upcoming Milestones</h2>
-              <Link to="/timeline" className="btn-secondary text-sm">View All</Link>
+              <h2 className="text-xl md:text-2xl font-serif text-charcoal">
+                {userRole === 'planner' ? '📅 Upcoming Milestones' : '📅 What’s Coming Up'}
+              </h2>
+              <Link to="/timeline" className="btn-secondary text-sm">
+                View All
+              </Link>
             </div>
 
             <div className="space-y-4">
@@ -134,6 +159,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
                         Category: {milestone.category.charAt(0).toUpperCase() + milestone.category.slice(1)}
                       </p>
                     </div>
+
                     <div className="text-right">
                       <p className="font-semibold text-charcoal">{Math.max(0, milestone.daysUntil)} days</p>
                       <p className="text-xs text-slate">until deadline</p>
@@ -141,14 +167,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
                   </div>
                 ))
               ) : (
-                <p className="text-slate italic">No upcoming milestones. All events completed! 🎉</p>
+                <p className="text-slate italic">
+                  {userRole === 'planner'
+                    ? 'No upcoming milestones. Everything currently looks settled.'
+                    : 'No upcoming milestones right now. Everything currently looks settled. 🎉'}
+                </p>
               )}
             </div>
           </div>
 
-          {/* Quick Stats */}
+          {/* Snapshot */}
           <div className="card">
-            <h2 className="text-xl md:text-2xl font-serif text-charcoal mb-6 md:mb-8">✨ Planning Snapshot</h2>
+            <h2 className="text-xl md:text-2xl font-serif text-charcoal mb-6 md:mb-8">
+              {userRole === 'planner' ? '✨ Planning Snapshot' : '✨ Wedding Snapshot'}
+            </h2>
 
             <div className="space-y-6">
               <div>
@@ -156,18 +188,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
                   <span className="text-sm font-medium text-charcoal">Overall Progress</span>
                   <span className="text-sm text-slate">{progressPercent}%</span>
                 </div>
+
                 <div className="w-full bg-sand rounded-full h-2">
-                  <div className="bg-charcoal h-2 rounded-full transition-all" style={{ width: `${progressPercent}%` }}></div>
+                  <div
+                    className="bg-charcoal h-2 rounded-full transition-all"
+                    style={{ width: `${progressPercent}%` }}
+                  />
                 </div>
               </div>
 
               <div className="pt-4 border-t border-gold/20">
                 <p className="text-sm text-slate">
-                  <span className="text-charcoal font-medium">Next Critical Task:</span>
+                  <span className="text-charcoal font-medium">
+                    {userRole === 'planner' ? 'Next Priority:' : 'Next Important Step:'}
+                  </span>
                   <br />
                   {upcomingMilestones.length > 0
                     ? upcomingMilestones[0].title
-                    : 'All milestones completed!'}
+                    : 'Everything currently marked is complete.'}
                 </p>
               </div>
 
@@ -185,8 +223,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
         {/* Vendor Contracts */}
         <div className="card mb-16">
           <div className="flex items-center justify-between mb-6 md:mb-8">
-            <h2 className="text-xl md:text-2xl font-serif text-charcoal">📄 Vendor Contracts</h2>
-            <Link to="/contracts" className="btn-secondary text-sm">View All</Link>
+            <h2 className="text-xl md:text-2xl font-serif text-charcoal">
+              {userRole === 'planner' ? '📄 Vendor Contracts' : '📄 Shared Documents'}
+            </h2>
+            <Link to="/contracts" className="btn-secondary text-sm">
+              View All
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
@@ -199,10 +241,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
                   <div className="text-3xl mb-3">{contract.icon}</div>
                   <h3 className="font-medium text-charcoal mb-1">{contract.vendor}</h3>
                   <p className="text-xs text-slate mb-4">{contract.type}</p>
+
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium px-3 py-1 rounded-full bg-green-100 text-green-700">
                       {contract.status}
                     </span>
+
                     <button
                       onClick={() => window.open(contract.fileUrl, '_blank')}
                       className="text-gold hover:text-charcoal transition-colors"
@@ -213,21 +257,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
                 </div>
               ))
             ) : (
-              <p className="text-slate italic col-span-3">No contracts uploaded yet.</p>
+              <p className="text-slate italic col-span-3">
+                {userRole === 'planner'
+                  ? 'No contracts uploaded yet.'
+                  : 'No shared documents yet.'}
+              </p>
             )}
           </div>
         </div>
 
-        {/* Call to Action */}
+        {/* Guided Next Step */}
         <div className="bg-blush rounded-lg p-8 md:p-12 text-center">
           <h3 className="text-xl md:text-2xl font-serif text-charcoal mb-4">
-  {userRole === 'planner' ? 'Need Assistance?' : 'Have a question?'}
-</h3>
+            {primaryAction.title}
+          </h3>
+
           <p className="text-slate mb-6 max-w-2xl mx-auto">
-            Our wedding planner is here to guide you through every step of the journey. Send a message
-            anytime!
+            {primaryAction.text}
           </p>
-          <Link to="/messages" className="btn-primary inline-block">Send Message to Planner</Link>
+
+          <Link to={primaryAction.buttonLink} className="btn-primary inline-block">
+            {primaryAction.buttonLabel}
+          </Link>
         </div>
       </div>
     </div>
@@ -243,11 +294,16 @@ function getVendorIcon(vendorType: string): string {
     music: '🎵',
     other: '📦',
   };
+
   return icons[vendorType] || '📦';
 }
 
 function calculateDaysUntil(weddingDate?: string): string {
   if (!weddingDate) return '0';
-  const daysUntil = Math.ceil((new Date(weddingDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+
+  const daysUntil = Math.ceil(
+    (new Date(weddingDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+  );
+
   return Math.max(0, daysUntil).toString();
 }

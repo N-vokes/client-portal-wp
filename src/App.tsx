@@ -1,3 +1,5 @@
+import React from 'react';
+import { RoleEntry } from './pages/RoleEntry';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './index.css';
 import { Navigation } from './components/Navigation/Navigation';
@@ -16,12 +18,30 @@ import { Analytics } from '@vercel/analytics/react';
 type UserRole = 'planner' | 'couple';
 
 function AppContent() {
-  const userRole: UserRole =
-  (localStorage.getItem('role') as UserRole) || 'planner';
+  const [userRole, setUserRole] = React.useState<UserRole | null>(() => {
+    const savedRole = localStorage.getItem('role');
+    return savedRole === 'planner' || savedRole === 'couple'
+      ? savedRole
+      : null;
+  });
+
+  const handleSelectRole = (role: UserRole) => {
+    localStorage.setItem('role', role);
+    setUserRole(role);
+  };
+
+  const handleBackToEntry = () => {
+    localStorage.removeItem('role');
+    setUserRole(null);
+  };
+
+  if (!userRole) {
+    return <RoleEntry onSelectRole={handleSelectRole} />;
+  }
 
   return (
     <div className="min-h-screen bg-cream overflow-x-hidden">
-      <Navigation userRole={userRole} />
+      <Navigation userRole={userRole} onBackToEntry={handleBackToEntry} />
       <Routes>
         <Route path="/" element={<Dashboard userRole={userRole} />} />
         <Route path="/timeline" element={<TimelinePage userRole={userRole} />} />
@@ -38,17 +58,17 @@ function AppContent() {
 function App() {
   return (
     <>
-    <ErrorBoundary>
-      <ToastProvider>
-        <WeddingProvider>
-          <BrowserRouter>
-            <AppContent />
-          </BrowserRouter>
-        </WeddingProvider>
-      </ToastProvider>
-    </ErrorBoundary>
+      <ErrorBoundary>
+        <ToastProvider>
+          <WeddingProvider>
+            <BrowserRouter>
+              <AppContent />
+            </BrowserRouter>
+          </WeddingProvider>
+        </ToastProvider>
+      </ErrorBoundary>
 
-          <Analytics />
+      <Analytics />
     </>
   );
 }
