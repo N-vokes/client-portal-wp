@@ -91,10 +91,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole }) => {
       <div className="bg-gradient-to-br from-sand to-cream border-b border-gold/20">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
           <h1 className="text-3xl md:text-5xl font-serif text-charcoal mb-4 leading-tight">
-            {userRole === 'planner'
-              ? `Welcome back — ${wedding?.coupleNames || 'Demo Couple'} 💍`
-              : `${wedding?.coupleNames || 'Your Wedding'} ✨`}
-          </h1>
+  {userRole === 'planner'
+    ? `${wedding?.coupleNames || 'Demo Couple'} — Planner View`
+    : `${wedding?.coupleNames || 'Your Wedding'} ✨`}
+</h1>
 
           <p className="text-base md:text-lg text-slate max-w-2xl leading-relaxed">
             {userRole === 'planner'
