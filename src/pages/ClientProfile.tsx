@@ -5,6 +5,7 @@ import type { Note, CommunicationEntry, VendorEntry, PaymentEntry, VisionNote, M
 import { initialNotes, initialCommunication, initialVendors, initialPayments, initialVisionNotes, initialMilestones } from '../data/clientProfileData';
 import { ClientHeader } from '../components/ClientProfile/ClientHeader';
 import { QuickActionsReminders } from '../components/ClientProfile/QuickActionsReminders';
+import { ClientIntakeSection } from '../components/ClientProfile/ClientIntakeSection';
 import { ClientOverviewCards } from '../components/ClientProfile/ClientOverviewCards';
 import { NotesSection } from '../components/ClientProfile/NotesSection';
 import { CommunicationLogSection } from '../components/ClientProfile/CommunicationLogSection';
@@ -60,6 +61,23 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'partial' | 'unpaid'>('unpaid');
   const [paymentDueDate, setPaymentDueDate] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+
+  const [intakeCoupleNames, setIntakeCoupleNames] = useState(client?.coupleNames || '');
+  const [intakeWeddingDate, setIntakeWeddingDate] = useState(client?.weddingDate || '');
+  const [intakeCeremonyVenue, setIntakeCeremonyVenue] = useState(client?.location || '');
+  const [intakeReceptionVenue, setIntakeReceptionVenue] = useState('');
+  const [intakeGuestCount, setIntakeGuestCount] = useState('');
+  const [intakeBudget, setIntakeBudget] = useState('');
+  const [intakePlanningStage, setIntakePlanningStage] = useState('');
+  const [intakeWeddingStyle, setIntakeWeddingStyle] = useState('');
+  const [intakePreferredColors, setIntakePreferredColors] = useState('');
+  const [intakeTopPriorities, setIntakeTopPriorities] = useState('');
+  const [intakeMustHaves, setIntakeMustHaves] = useState('');
+  const [intakeDoNotWant, setIntakeDoNotWant] = useState('');
+  const [intakeMainHelpNeeded, setIntakeMainHelpNeeded] = useState('');
+  const [intakeBiggestConcern, setIntakeBiggestConcern] = useState('');
+  const [intakeCommunicationPreference, setIntakeCommunicationPreference] = useState('');
+  const [intakeAdditionalNotes, setIntakeAdditionalNotes] = useState('');
 
   const notes = client ? notesByClient[client.id] || [] : [];
   const communication = client ? commByClient[client.id] || [] : [];
@@ -355,6 +373,42 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
   }`}
 >
           <div className="space-y-6 sm:space-y-7 lg:space-y-8">
+  <ClientIntakeSection
+    userRole={userRole}
+    coupleNames={intakeCoupleNames}
+    weddingDate={intakeWeddingDate}
+    ceremonyVenue={intakeCeremonyVenue}
+    receptionVenue={intakeReceptionVenue}
+    guestCount={intakeGuestCount}
+    budget={intakeBudget}
+    planningStage={intakePlanningStage}
+    weddingStyle={intakeWeddingStyle}
+    preferredColors={intakePreferredColors}
+    topPriorities={intakeTopPriorities}
+    mustHaves={intakeMustHaves}
+    doNotWant={intakeDoNotWant}
+    mainHelpNeeded={intakeMainHelpNeeded}
+    biggestConcern={intakeBiggestConcern}
+    communicationPreference={intakeCommunicationPreference}
+    additionalNotes={intakeAdditionalNotes}
+    onCoupleNamesChange={setIntakeCoupleNames}
+    onWeddingDateChange={setIntakeWeddingDate}
+    onCeremonyVenueChange={setIntakeCeremonyVenue}
+    onReceptionVenueChange={setIntakeReceptionVenue}
+    onGuestCountChange={setIntakeGuestCount}
+    onBudgetChange={setIntakeBudget}
+    onPlanningStageChange={setIntakePlanningStage}
+    onWeddingStyleChange={setIntakeWeddingStyle}
+    onPreferredColorsChange={setIntakePreferredColors}
+    onTopPrioritiesChange={setIntakeTopPriorities}
+    onMustHavesChange={setIntakeMustHaves}
+    onDoNotWantChange={setIntakeDoNotWant}
+    onMainHelpNeededChange={setIntakeMainHelpNeeded}
+    onBiggestConcernChange={setIntakeBiggestConcern}
+    onCommunicationPreferenceChange={setIntakeCommunicationPreference}
+    onAdditionalNotesChange={setIntakeAdditionalNotes}
+  />
+
   {userRole === 'planner' && (
     <>
       <NotesSection
