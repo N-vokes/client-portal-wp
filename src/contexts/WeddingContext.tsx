@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { TimelineEvent, Contract, MoodBoardImage, WeddingData } from '../types';
+import type { TimelineEvent, Contract, MoodBoardImage, WeddingData, TimelineAction, TimelineEventInput, UserRole } from '../types';
 import { db } from '../lib/supabase';
 
 interface WeddingContextType {
@@ -9,10 +9,15 @@ interface WeddingContextType {
   moodBoardImages: MoodBoardImage[];
   loading: boolean;
   error: string | null;
+  lastUpdated: number | null;
+  isUpdating: boolean;
   
   // Timeline actions
+  createTimelineEvent: (event: Omit<TimelineEvent, 'id' | 'completed'>) => Promise<void>;
   addTimelineEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<void>;
   updateTimelineEvent: (id: string, updates: Partial<TimelineEvent>) => Promise<void>;
+  deleteTimelineEvent: (id: string) => Promise<void>;
+  handleTimelineAction: (action: TimelineAction, userRole: UserRole) => Promise<void>;
   
   // Contract actions
   addContract: (contract: Omit<Contract, 'id'>) => Promise<void>;
@@ -35,11 +40,25 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [moodBoardImages, setMoodBoardImages] = useState<MoodBoardImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Initialize and load data
   useEffect(() => {
     loadData();
   }, []);
+
+  const sortTimelineEvents = (events: TimelineEvent[]) =>
+    [...events].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+  const validCategories: TimelineEvent['category'][] = [
+    'planning',
+    'design',
+    'logistics',
+    'celebration',
+  ];
 
   const loadData = async () => {
     try {
@@ -201,40 +220,136 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
         assigned_to: event.assignedTo,
       });
 
-      setTimelineEvents([
-        ...timelineEvents,
-        {
-          id: newEvent.id,
-          title: newEvent.title,
-          description: newEvent.description,
-          date: newEvent.date,
-          category: newEvent.category,
-          completed: newEvent.completed,
-          assignedTo: newEvent.assigned_to,
-        },
-      ]);
+      setTimelineEvents((currentEvents) =>
+        sortTimelineEvents([
+          ...currentEvents,
+          {
+            id: newEvent.id,
+            title: newEvent.title,
+            description: newEvent.description,
+            date: newEvent.date,
+            category: newEvent.category,
+            completed: newEvent.completed,
+            assignedTo: newEvent.assigned_to,
+          },
+        ])
+      );
     } catch (err) {
       console.error('Failed to add timeline event:', err);
       throw err;
     }
   };
 
+  const createTimelineEvent = async (
+    event: Omit<TimelineEvent, 'id' | 'completed'>
+  ) => {
+    await addTimelineEvent({ ...event, completed: false });
+  };
+
   const updateTimelineEvent = async (id: string, updates: Partial<TimelineEvent>) => {
     try {
-      const dbUpdates: any = {};
+      const dbUpdates: Record<string, unknown> = {};
       if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
       if (updates.title !== undefined) dbUpdates.title = updates.title;
       if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.date !== undefined) dbUpdates.date = updates.date;
+      if (updates.category !== undefined) dbUpdates.category = updates.category;
+      if (updates.assignedTo !== undefined) dbUpdates.assigned_to = updates.assignedTo;
 
       await db.updateTimelineEvent(id, dbUpdates);
 
-      setTimelineEvents(
-        timelineEvents.map((event) =>
-          event.id === id ? { ...event, ...updates } : event
+      setTimelineEvents((currentEvents) =>
+        sortTimelineEvents(
+          currentEvents.map((event) =>
+            event.id === id ? { ...event, ...updates } : event
+          )
         )
       );
     } catch (err) {
       console.error('Failed to update timeline event:', err);
+      throw err;
+    }
+  };
+
+  const deleteTimelineEvent = async (id: string) => {
+    try {
+      await db.deleteTimelineEvent(id);
+      setTimelineEvents((currentEvents) =>
+        currentEvents.filter((event) => event.id !== id)
+      );
+    } catch (err) {
+      console.error('Failed to delete timeline event:', err);
+      throw err;
+    }
+  };
+
+  // Centralized action handler for timeline with role validation and frontend-only realtime mock
+  const handleTimelineAction = async (action: TimelineAction, userRole: UserRole) => {
+    // Role enforcement: couples can only toggle complete
+    if (userRole === 'couple' && action.type !== 'TOGGLE_COMPLETE') {
+      console.warn('Unauthorized action for couple:', action.type);
+      return;
+    }
+
+    // Planner may perform any action
+    try {
+      setIsUpdating(true);
+
+      if (action.type === 'CREATE') {
+        const data: TimelineEventInput = action.data;
+        if (!validCategories.includes(data.category)) {
+          console.warn('Invalid category for create:', data.category);
+          return;
+        }
+
+        const newEvent: TimelineEvent = {
+          id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 7),
+          title: data.title,
+          description: data.description,
+          date: data.date,
+          category: data.category,
+          completed: false,
+          assignedTo: data.assignedTo,
+        };
+
+        setTimelineEvents((current) => sortTimelineEvents([...current, newEvent]));
+      }
+
+      if (action.type === 'UPDATE') {
+        const { id, data } = action;
+        if (data.category && !validCategories.includes(data.category as any)) {
+          console.warn('Invalid category for update:', data.category);
+          return;
+        }
+
+        setTimelineEvents((current) =>
+          sortTimelineEvents(
+            current.map((evt) => (evt.id === id ? { ...evt, ...data } : evt))
+          )
+        );
+      }
+
+      if (action.type === 'DELETE') {
+        setTimelineEvents((current) => current.filter((evt) => evt.id !== action.id));
+      }
+
+      if (action.type === 'TOGGLE_COMPLETE') {
+        const id = action.id;
+        setTimelineEvents((current) =>
+          current.map((evt) =>
+            evt.id === id ? { ...evt, completed: !evt.completed } : evt
+          )
+        );
+      }
+
+      // simulate realtime sync timestamp
+      setLastUpdated(Date.now());
+
+      // small delay for UX badge
+      setTimeout(() => setIsUpdating(false), 700);
+    } catch (err) {
+      setIsUpdating(false);
+      console.error('handleTimelineAction error:', err);
       throw err;
     }
   };
@@ -335,8 +450,13 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     moodBoardImages,
     loading,
     error,
+    lastUpdated,
+    isUpdating,
+    createTimelineEvent,
     addTimelineEvent,
     updateTimelineEvent,
+    deleteTimelineEvent,
+    handleTimelineAction,
     addContract,
     deleteContract,
     addMoodBoardImage,

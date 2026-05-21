@@ -1,58 +1,265 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { TimelineEvent } from '../types';
 import { useWedding } from '../contexts/WeddingContext';
 import { useToast } from '../contexts/ToastContext';
 import { TimelineSkeleton } from '../components/Skeleton';
-import { getErrorMessage } from '../utils/validation';
+import { getErrorMessage, validators } from '../utils/validation';
+import {
+  generateTimelineSuggestions,
+  getDateBeforeWedding,
+  type TimelineSuggestion,
+} from '../utils/timelineSuggestions';
+import AddTimelineEventModal from '../components/AddTimelineEventModal';
 
 interface TimelinePageProps {
   userRole: 'planner' | 'couple';
 }
 
-export const TimelinePage: React.FC<TimelinePageProps> = ({ userRole }) => {
-  const { timelineEvents, updateTimelineEvent, loading } = useWedding();
+type TimelineCategory = TimelineEvent['category'];
+type CategoryFilter = TimelineCategory | 'all';
+
+const validCategories: TimelineCategory[] = [
+  'planning',
+  'design',
+  'logistics',
+  'celebration',
+];
+
+const categories: CategoryFilter[] = ['all', ...validCategories];
+
+const categoryIcons: Record<TimelineCategory, string> = {
+  planning: '📋',
+  design: '🎨',
+  logistics: '🚀',
+  celebration: '🎉',
+};
+
+const categoryLabels: Record<TimelineCategory, string> = {
+  planning: 'Planning',
+  design: 'Design',
+  logistics: 'Logistics',
+  celebration: 'Celebration',
+};
+
+const isValidCategory = (
+  category: string
+): category is TimelineCategory =>
+  validCategories.includes(category as TimelineCategory);
+
+const getSafeId = (
+  id: string | number | null | undefined
+): string => {
+  if (id === null || id === undefined) {
+    return '';
+  }
+
+  return String(id);
+};
+
+const getSafeCategory = (
+  category: string | TimelineCategory | undefined
+): TimelineCategory => {
+  if (!category) {
+    return 'planning';
+  }
+
+  return isValidCategory(category) ? category : 'planning';
+};
+
+const formatDate = (date: string) => {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return 'Date unavailable';
+
+  return parsed.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+export const TimelinePage: React.FC<TimelinePageProps> = ({
+  userRole,
+}) => {
+  const { wedding, timelineEvents, handleTimelineAction, lastUpdated, isUpdating, loading } = useWedding();
   const { addToast } = useToast();
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'planning' | 'design' | 'logistics' | 'celebration'>('all');
-  const [animatingEventId, setAnimatingEventId] = useState<string | null>(null);
 
-  const categoryIcons: Record<string, string> = {
-    planning: '📋',
-    design: '🎨',
-    logistics: '🚀',
-    celebration: '🎉',
-  };
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
 
-  const categoryLabels: Record<string, string> = {
-    planning: 'Planning',
-    design: 'Design',
-    logistics: 'Logistics',
-    celebration: 'Celebration',
-  };
+  const [selectedCategory, setSelectedCategory] =
+    useState<CategoryFilter>('all');
+  const [animatingId, setAnimatingId] = useState<string | null>(null);
 
-  const filteredEvents = 
-    selectedCategory === 'all'
-      ? timelineEvents
-      : timelineEvents.filter((event) => event.category === selectedCategory);
+  const safeEvents = useMemo(() => {
+    if (!Array.isArray(timelineEvents)) {
+      return [] as TimelineEvent[];
+    }
 
-  const categories: Array<'all' | 'planning' | 'design' | 'logistics' | 'celebration'> = [
-    'all',
-    'planning',
-    'design',
-    'logistics',
-    'celebration',
-  ];
+    return timelineEvents;
+  }, [timelineEvents]);
 
-  const handleToggleComplete = async (event: TimelineEvent) => {
+  const filteredEvents = useMemo(() => {
+    if (selectedCategory === 'all') {
+      return safeEvents;
+    }
+
+    return safeEvents.filter(
+      (event) => event.category === selectedCategory
+    );
+  }, [safeEvents, selectedCategory]);
+
+  const stats = useMemo(() => {
+    const completed = safeEvents.reduce(
+      (count, event) => (event.completed ? count + 1 : count),
+      0
+    );
+    const total = safeEvents.length;
+    const upcoming = total - completed;
+
+    return {
+      completed,
+      upcoming,
+      progress: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [safeEvents]);
+
+  const suggestions = useMemo(
+    () =>
+      generateTimelineSuggestions(
+        wedding?.weddingDate ?? '',
+        safeEvents
+      ),
+    [wedding?.weddingDate, safeEvents]
+  );
+
+  const handleAddSuggestionToTimeline = async (
+    suggestion: TimelineSuggestion
+  ) => {
+    if (!wedding?.weddingDate) {
+      addToast('Unable to add suggestion without a wedding date', 'error');
+      return;
+    }
+
+    const date = getDateBeforeWedding(
+      wedding.weddingDate,
+      suggestion.estimatedDaysBeforeWedding
+    );
+
+    if (!date) {
+      addToast('Unable to calculate date for suggestion', 'error');
+      return;
+    }
+
     try {
-      if (!event.completed) {
-        // Trigger animation when marking as complete
-        setAnimatingEventId(event.id);
-        setTimeout(() => setAnimatingEventId(null), 300);
-      }
-      await updateTimelineEvent(event.id, { completed: !event.completed });
-      addToast(event.completed ? 'Milestone marked as pending' : 'Milestone completed! 🎉', 'success');
-    } catch (error) {
-      addToast(getErrorMessage(error), 'error');
+      await handleTimelineAction(
+        {
+          type: 'CREATE',
+          data: {
+            title: suggestion.title,
+            description: suggestion.description,
+            date,
+            category: suggestion.category,
+            assignedTo: undefined,
+          },
+        },
+        userRole
+      );
+
+      addToast('Suggestion added to timeline', 'success');
+    } catch (err) {
+      addToast(getErrorMessage(err), 'error');
+    }
+  };
+
+  const handleToggle = async (event: TimelineEvent) => {
+    const eventId = getSafeId(event.id);
+    if (!eventId) {
+      addToast('Unable to update milestone', 'error');
+      return;
+    }
+
+    const nextCompleted = !event.completed;
+
+    if (!event.completed) {
+      setAnimatingId(eventId);
+      setTimeout(() => {
+        setAnimatingId((current) =>
+          current === eventId ? null : current
+        );
+      }, 300);
+    }
+
+    try {
+      await handleTimelineAction({ type: 'TOGGLE_COMPLETE', id: eventId }, userRole);
+
+      addToast(
+        nextCompleted
+          ? 'Milestone completed! 🎉'
+          : 'Milestone marked as pending',
+        'success'
+      );
+    } catch (err) {
+      addToast(getErrorMessage(err), 'error');
+    }
+  };
+
+  const isValidDate = (d: string) => validators.validateDate(d).length === 0;
+
+  const handleCreate = async (event: Omit<TimelineEvent, 'id' | 'completed'>) => {
+    if (!isValidDate(event.date)) {
+      addToast('Invalid date', 'error');
+      return;
+    }
+
+    if (!isValidCategory(event.category)) {
+      addToast('Invalid category', 'error');
+      return;
+    }
+
+    try {
+      await handleTimelineAction({ type: 'CREATE', data: event }, userRole);
+      addToast('Milestone added', 'success');
+      setIsAddModalOpen(false);
+    } catch (err) {
+      addToast(getErrorMessage(err), 'error');
+    }
+  };
+
+  const handleUpdate = async (id: string, updates: Partial<TimelineEvent>) => {
+    if (updates.date && !isValidDate(updates.date)) {
+      addToast('Invalid date', 'error');
+      return;
+    }
+
+    if (updates.category && !isValidCategory(updates.category)) {
+      addToast('Invalid category', 'error');
+      return;
+    }
+
+    try {
+      await handleTimelineAction({ type: 'UPDATE', id, data: updates }, userRole);
+      addToast('Milestone updated', 'success');
+      setEditingEvent(null);
+      setIsAddModalOpen(false);
+    } catch (err) {
+      addToast(getErrorMessage(err), 'error');
+    }
+  };
+
+  const handleEdit = (event: TimelineEvent) => {
+    setEditingEvent(event);
+    setIsAddModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    const ok = window.confirm('Delete milestone?');
+    if (!ok) return;
+
+    try {
+      await handleTimelineAction({ type: 'DELETE', id }, userRole);
+      addToast('Milestone deleted', 'success');
+    } catch (err) {
+      addToast(getErrorMessage(err), 'error');
     }
   };
 
@@ -62,142 +269,202 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({ userRole }) => {
 
   return (
     <div className="min-h-screen bg-cream page-enter">
-      {/* Header */}
+      {/* HEADER */}
       <div className="bg-gradient-to-br from-sand to-cream border-b border-gold/20">
         <div className="max-w-7xl mx-auto px-8 py-16">
-          <h1 className="text-5xl font-serif text-charcoal mb-4">📅 Live Wedding Timeline</h1>
-          <p className="text-lg text-slate max-w-3xl">
-            Your wedding unfolds moment by moment. Watch your dreams become reality with every milestone
-            you complete.
+          <h1 className="text-5xl font-serif text-charcoal mb-4">
+            📅 Live Wedding Timeline
+          </h1>
+          <p className="text-slate max-w-3xl">
+            Track every milestone of your wedding journey.
           </p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-8 py-12">
-        {/* Filter Buttons */}
-        <div className="mb-12 flex flex-wrap gap-3">
-          {categories.map((cat) => (
+      {/* FILTERS */}
+      <div className="max-w-4xl mx-auto px-8 py-10">
+        <div className="flex flex-wrap gap-3 mb-10">
+          {categories.map((category) => (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-                selectedCategory === cat
-                  ? 'bg-charcoal text-cream font-medium'
-                  : 'bg-sand text-charcoal hover:bg-taupe'
-              }`}
-            >
-              {cat === 'all' ? '✨ All' : `${categoryIcons[cat]} ${categoryLabels[cat]}`}
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-4 py-2 rounded-lg transition ${
+                selectedCategory === category
+                  ? 'bg-charcoal text-cream'
+                  : 'bg-sand text-charcoal'
+              }`}>
+              {category === 'all'
+                ? '✨ All'
+                : `${categoryIcons[category]} ${categoryLabels[category]}`}
             </button>
           ))}
         </div>
 
-        {/* Timeline */}
-        <div className="relative">
-          {/* Timeline Line */}
-          <div className="absolute left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-gold via-taupe to-gold"></div>
+        <div className="mb-10 rounded-3xl border border-gold/20 bg-white/80 p-8">
+          <div className="mb-6 flex flex-col gap-2">
+            <p className="text-sm uppercase tracking-[0.2em] text-slate">
+              ✨ AI Suggestions
+            </p>
+            <h2 className="text-2xl font-serif text-charcoal">
+              Smart Timeline Suggestions
+            </h2>
+          </div>
 
-          {/* Timeline Events */}
-          <div className="space-y-8">
-            {filteredEvents.length > 0 ? (
-              filteredEvents.map((event) => (
-                <div key={event.id} className="relative">
-                  {/* Timeline Dot */}
-                  <button
-                    onClick={() => handleToggleComplete(event)}
-                    className={`absolute left-0 w-16 h-16 flex items-center justify-center rounded-full border-4 border-cream z-10 transition-colors duration-200 ${
-                      event.completed ? 'bg-charcoal text-cream' : 'bg-white border-gold hover:bg-sand'
-                    } ${animatingEventId === event.id ? 'animate-checkComplete' : ''}`}
-                  >
-                    <span className="text-2xl">{categoryIcons[event.category]}</span>
-                  </button>
-
-                  {/* Event Card */}
-                  <div className="ml-32 card group">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="text-xl font-serif text-charcoal">{event.title}</h3>
-                        {event.assignedTo && (
-                          <p className="text-xs text-slate mt-1">Assigned to: {event.assignedTo}</p>
-                        )}
-                      </div>
-                      {event.completed && (
-                        <span className="text-sm font-medium text-charcoal bg-sand px-3 py-1 rounded-full">
-                          ✓ Completed
+          {suggestions.length > 0 ? (
+            <div className="space-y-4">
+              {suggestions.map((suggestion) => (
+                <div
+                  key={suggestion.id}
+                  className="rounded-2xl border border-gold/10 bg-cream/70 p-5"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h3 className="font-serif text-lg text-charcoal">
+                        {suggestion.title}
+                      </h3>
+                      <p className="text-slate mb-3">
+                        {suggestion.description}
+                      </p>
+                      <div className="text-sm text-slate">
+                        <span>{categoryLabels[suggestion.category]}</span>
+                        <span className="ml-4">
+                          ~{suggestion.estimatedDaysBeforeWedding} days before wedding
                         </span>
-                      )}
+                      </div>
                     </div>
 
-                    <p className="text-slate mb-4">{event.description}</p>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-gold/20">
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-gold font-medium">
-                          📅 {new Date(event.date).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </span>
-                        <span className="text-slate">{categoryLabels[event.category]}</span>
-                      </div>
-                      {userRole === 'planner' && (
-                        <button className="text-gold hover:text-charcoal transition-colors text-sm font-medium">
-                          Edit →
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSuggestionToTimeline(suggestion)}
+                      className="mt-3 rounded-full bg-charcoal px-5 py-3 text-sm font-semibold text-cream transition hover:bg-slate md:mt-0"
+                    >
+                      Add to Timeline
+                    </button>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="py-20 text-center">
-                <div className="inline-block mb-6">
-                  <p className="text-6xl mb-4">📅</p>
-                </div>
-                <h3 className="text-2xl font-serif text-charcoal mb-3">No milestones yet</h3>
-                <p className="text-slate max-w-md mx-auto mb-8">
-                  Start planning your wedding timeline.
-                </p>
-                {userRole === 'planner' && (
-                  <button className="btn-primary">Add your first milestone</button>
-                )}
-                {userRole === 'couple' && (
-                  <p className="text-xs text-slate italic">⏳ Timeline updates will appear here as planning progresses</p>
-                )}
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate">
+              No AI suggestions are available right now. Add a wedding date or complete missing categories to see suggestions.
+            </p>
+          )}
         </div>
 
-        {/* Add Event Button */}
-        {userRole === 'planner' && (
-          <div className="mt-16 text-center">
-            <button className="btn-primary">+ Add New Milestone</button>
-          </div>
-        )}
+        {/* TIMELINE */}
+        <div className="relative space-y-10">
+          <div className="absolute left-8 top-0 bottom-0 w-1 bg-gold" />
 
-        {/* Stats Section */}
+              <div className="mb-6 flex justify-between items-center">
+                <div />
+                {userRole === 'planner' && (
+                  <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="rounded-full bg-charcoal px-5 py-3 text-sm font-semibold text-cream"
+                  >
+                    + Add Milestone
+                  </button>
+                )}
+                {isUpdating && (
+                  <div className="ml-4 text-xs px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                    {userRole === 'couple' ? 'Planner updating…' : 'Updating…'}
+                  </div>
+                )}
+                {lastUpdated && (
+                  <div className="ml-3 text-xs text-slate">Last updated just now</div>
+                )}
+              </div>
+
+          {filteredEvents.map((event) => {
+            const safeCategory = getSafeCategory(event.category);
+            const eventId = getSafeId(event.id);
+
+            return (
+              <div key={eventId} className="relative">
+                {/* DOT */}
+                <button
+                  onClick={() => handleToggle(event)}
+                  className={`absolute left-0 w-16 h-16 rounded-full border-4 flex items-center justify-center transition ${
+                    event.completed
+                      ? 'bg-charcoal text-cream'
+                      : 'bg-white border-gold'
+                  } ${
+                    animatingId === eventId
+                      ? 'animate-pulse'
+                      : ''
+                  }`}>
+                  <span className="text-2xl">
+                    {categoryIcons[safeCategory]}
+                  </span>
+                </button>
+
+                {/* CARD */}
+                <div className="ml-32 bg-white/60 p-6 rounded-2xl border border-gold/10">
+                  <h3 className="font-serif text-lg text-charcoal">
+                    {event.title}
+                  </h3>
+
+                  <p className="text-slate mb-4">
+                    {event.description}
+                  </p>
+
+                  <div className="flex gap-2 mt-4">
+                    {userRole === 'planner' && (
+                      <>
+                        <button onClick={() => handleEdit(event)} className="px-3 py-1 rounded bg-sand text-charcoal">Edit</button>
+                        <button onClick={() => handleDelete(eventId)} className="px-3 py-1 rounded bg-white border border-red-200 text-red-600">Delete</button>
+                      </>
+                    )}
+                    {userRole === 'couple' && (
+                      <div className="text-sm text-slate">You can mark this milestone complete</div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between text-sm text-slate">
+                    <span>📅 {formatDate(event.date)}</span>
+                    <span>{categoryLabels[safeCategory]}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          <AddTimelineEventModal
+            isOpen={isAddModalOpen}
+            onClose={() => { setIsAddModalOpen(false); setEditingEvent(null); }}
+            onCreate={handleCreate}
+            onUpdate={handleUpdate}
+            editingEvent={editingEvent}
+          />
+
+          {filteredEvents.length === 0 && (
+            <p className="text-center text-slate py-20">
+              No milestones yet
+            </p>
+          )}
+        </div>
+
+        {/* STATS */}
         <div className="mt-20 grid grid-cols-3 gap-6">
           <div className="card text-center">
-            <p className="text-3xl font-serif text-charcoal font-bold">
-              {timelineEvents.filter((e) => e.completed).length}
+            <p className="text-3xl font-serif">
+              {stats.completed}
             </p>
-            <p className="text-slate mt-2">Completed</p>
+            <p className="text-slate">Completed</p>
           </div>
+
           <div className="card text-center">
-            <p className="text-3xl font-serif text-charcoal font-bold">
-              {timelineEvents.filter((e) => !e.completed).length}
+            <p className="text-3xl font-serif">
+              {stats.upcoming}
             </p>
-            <p className="text-slate mt-2">Upcoming</p>
+            <p className="text-slate">Upcoming</p>
           </div>
+
           <div className="card text-center">
-            <p className="text-3xl font-serif text-charcoal font-bold">
-              {timelineEvents.length > 0 
-                ? Math.round((timelineEvents.filter((e) => e.completed).length / timelineEvents.length) * 100)
-                : 0}%
+            <p className="text-3xl font-serif">
+              {stats.progress}%
             </p>
-            <p className="text-slate mt-2">Progress</p>
+            <p className="text-slate">Progress</p>
           </div>
         </div>
       </div>

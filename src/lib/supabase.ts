@@ -42,6 +42,15 @@ export const db = {
     return data[0];
   },
 
+  async deleteTimelineEvent(id: string) {
+    const { error } = await supabase
+      .from('timeline_events')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
   // Contract operations
   async getContracts(weddingId: string) {
     const { data, error } = await supabase

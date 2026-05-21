@@ -17,6 +17,14 @@ export interface TimelineEvent {
   assignedTo?: string;
 }
 
+export type TimelineEventInput = Omit<TimelineEvent, 'id' | 'completed'>;
+
+export type TimelineAction =
+  | { type: 'CREATE'; data: TimelineEventInput }
+  | { type: 'UPDATE'; id: string; data: Partial<TimelineEvent> }
+  | { type: 'DELETE'; id: string }
+  | { type: 'TOGGLE_COMPLETE'; id: string };
+
 export interface Contract {
   id: string;
   vendorName: string;
