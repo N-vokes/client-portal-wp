@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { TimelineEvent } from '../types';
-import { useWedding } from '../contexts/WeddingContext';
-import { useToast } from '../contexts/ToastContext';
+import { useWedding } from '../contexts/useWedding';
+import { useToast } from '../contexts/useToast';
 import { TimelineSkeleton } from '../components/Skeleton';
 import { getErrorMessage, validators } from '../utils/validation';
 import {
@@ -9,119 +9,58 @@ import {
   getDateBeforeWedding,
   type TimelineSuggestion,
 } from '../utils/timelineSuggestions';
+import { formatShortDate } from '../utils/formatting';
+import {
+  categoryIcons,
+  categoryLabels,
+  timelineCategoryFilters,
+  isValidTimelineCategory,
+} from '../utils/timeline';
+import { useTimeline } from '../hooks/useTimeline';
 import AddTimelineEventModal from '../components/AddTimelineEventModal';
+import { EmptyState, ErrorState } from '../components/StateCards';
 
 interface TimelinePageProps {
   userRole: 'planner' | 'couple';
 }
 
-type TimelineCategory = TimelineEvent['category'];
-type CategoryFilter = TimelineCategory | 'all';
-
-const validCategories: TimelineCategory[] = [
-  'planning',
-  'design',
-  'logistics',
-  'celebration',
-];
-
-const categories: CategoryFilter[] = ['all', ...validCategories];
-
-const categoryIcons: Record<TimelineCategory, string> = {
-  planning: '📋',
-  design: '🎨',
-  logistics: '🚀',
-  celebration: '🎉',
-};
-
-const categoryLabels: Record<TimelineCategory, string> = {
-  planning: 'Planning',
-  design: 'Design',
-  logistics: 'Logistics',
-  celebration: 'Celebration',
-};
-
-const isValidCategory = (
-  category: string
-): category is TimelineCategory =>
-  validCategories.includes(category as TimelineCategory);
-
-const getSafeId = (
-  id: string | number | null | undefined
-): string => {
-  if (id === null || id === undefined) {
-    return '';
-  }
-
-  return String(id);
-};
-
-const getSafeCategory = (
-  category: string | TimelineCategory | undefined
-): TimelineCategory => {
-  if (!category) {
-    return 'planning';
-  }
-
-  return isValidCategory(category) ? category : 'planning';
-};
-
-const formatDate = (date: string) => {
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return 'Date unavailable';
-
-  return parsed.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
-
 export const TimelinePage: React.FC<TimelinePageProps> = ({
   userRole,
 }) => {
-  const { wedding, timelineEvents, handleTimelineAction, lastUpdated, isUpdating, loading } = useWedding();
+  const {
+    wedding,
+    timelineEvents,
+    handleTimelineAction,
+    lastUpdated,
+    isUpdating,
+    loading,
+    error,
+    refreshData,
+  } = useWedding();
   const { addToast } = useToast();
+
+  const {
+    selectedCategory,
+    setSelectedCategory,
+    filteredEvents,
+    safeEvents,
+    completedCount,
+    upcomingCount,
+    progressPercent,
+  } = useTimeline(timelineEvents);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
-
-  const [selectedCategory, setSelectedCategory] =
-    useState<CategoryFilter>('all');
   const [animatingId, setAnimatingId] = useState<string | null>(null);
 
-  const safeEvents = useMemo(() => {
-    if (!Array.isArray(timelineEvents)) {
-      return [] as TimelineEvent[];
-    }
-
-    return timelineEvents;
-  }, [timelineEvents]);
-
-  const filteredEvents = useMemo(() => {
-    if (selectedCategory === 'all') {
-      return safeEvents;
-    }
-
-    return safeEvents.filter(
-      (event) => event.category === selectedCategory
-    );
-  }, [safeEvents, selectedCategory]);
-
-  const stats = useMemo(() => {
-    const completed = safeEvents.reduce(
-      (count, event) => (event.completed ? count + 1 : count),
-      0
-    );
-    const total = safeEvents.length;
-    const upcoming = total - completed;
-
-    return {
-      completed,
-      upcoming,
-      progress: total > 0 ? Math.round((completed / total) * 100) : 0,
-    };
-  }, [safeEvents]);
+  const stats = useMemo(
+    () => ({
+      completed: completedCount,
+      upcoming: upcomingCount,
+      progress: progressPercent,
+    }),
+    [completedCount, upcomingCount, progressPercent]
+  );
 
   const suggestions = useMemo(
     () =>
@@ -160,6 +99,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
             date,
             category: suggestion.category,
             assignedTo: undefined,
+            completed: false,
           },
         },
         userRole
@@ -172,7 +112,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
   };
 
   const handleToggle = async (event: TimelineEvent) => {
-    const eventId = getSafeId(event.id);
+    const eventId = event.id;
     if (!eventId) {
       addToast('Unable to update milestone', 'error');
       return;
@@ -205,13 +145,13 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
 
   const isValidDate = (d: string) => validators.validateDate(d).length === 0;
 
-  const handleCreate = async (event: Omit<TimelineEvent, 'id' | 'completed'>) => {
+  const handleCreate = async (event: Omit<TimelineEvent, 'id'>) => {
     if (!isValidDate(event.date)) {
       addToast('Invalid date', 'error');
       return;
     }
 
-    if (!isValidCategory(event.category)) {
+    if (!isValidTimelineCategory(event.category)) {
       addToast('Invalid category', 'error');
       return;
     }
@@ -231,7 +171,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
       return;
     }
 
-    if (updates.category && !isValidCategory(updates.category)) {
+    if (updates.category && !isValidTimelineCategory(updates.category)) {
       addToast('Invalid category', 'error');
       return;
     }
@@ -267,6 +207,22 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
     return <TimelineSkeleton userRole={userRole} />;
   }
 
+  if (!loading && error && safeEvents.length === 0) {
+    return (
+      <div className="min-h-screen bg-cream page-enter">
+        <div className="max-w-4xl mx-auto px-8 py-24">
+          <ErrorState
+            icon="⚠️"
+            title="Timeline unavailable"
+            message={error}
+            actionLabel="Refresh"
+            onAction={refreshData}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-cream page-enter">
       {/* HEADER */}
@@ -284,7 +240,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
       {/* FILTERS */}
       <div className="max-w-4xl mx-auto px-8 py-10">
         <div className="flex flex-wrap gap-3 mb-10">
-          {categories.map((category) => (
+          {timelineCategoryFilters.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
@@ -376,8 +332,8 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
               </div>
 
           {filteredEvents.map((event) => {
-            const safeCategory = getSafeCategory(event.category);
-            const eventId = getSafeId(event.id);
+            const category = event.category;
+            const eventId = event.id;
 
             return (
               <div key={eventId} className="relative">
@@ -394,7 +350,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                       : ''
                   }`}>
                   <span className="text-2xl">
-                    {categoryIcons[safeCategory]}
+                    {categoryIcons[category]}
                   </span>
                 </button>
 
@@ -421,8 +377,8 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                   </div>
 
                   <div className="flex justify-between text-sm text-slate">
-                    <span>📅 {formatDate(event.date)}</span>
-                    <span>{categoryLabels[safeCategory]}</span>
+                    <span>📅 {formatShortDate(event.date)}</span>
+                    <span>{categoryLabels[category]}</span>
                   </div>
                 </div>
               </div>
@@ -438,9 +394,18 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
           />
 
           {filteredEvents.length === 0 && (
-            <p className="text-center text-slate py-20">
-              No milestones yet
-            </p>
+            <EmptyState
+              icon="✨"
+              title="No milestones yet"
+              message={
+                userRole === 'planner'
+                  ? 'Create your first wedding milestone to keep the timeline moving. Every detail helps your couple feel supported and prepared.'
+                  : 'Your planner will add timeline milestones here. Check back soon for the next step in your wedding journey.'
+              }
+              actionLabel={userRole === 'planner' ? 'Add milestone' : undefined}
+              onAction={userRole === 'planner' ? () => setIsAddModalOpen(true) : undefined}
+              className="py-20"
+            />
           )}
         </div>
 

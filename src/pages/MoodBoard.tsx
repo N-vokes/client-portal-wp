@@ -1,8 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useWedding } from '../contexts/WeddingContext';
-import { useToast } from '../contexts/ToastContext';
+import { useWedding } from '../contexts/useWedding';
+import { useToast } from '../contexts/useToast';
 import { MoodBoardSkeleton } from '../components/Skeleton';
 import { validators, getErrorMessage } from '../utils/validation';
+import { EmptyState } from '../components/StateCards';
+import type { MoodBoardImage } from '../types';
+
+type MoodBoardReply = {
+  id: string;
+  author: string;
+  text: string;
+  createdAt: string;
+};
+
+type MoodBoardComment = {
+  id: string;
+  author: string;
+  text: string;
+  createdAt: string;
+  isDecision?: boolean;
+  replies?: MoodBoardReply[];
+};
+
+type MoodBoardImageState = MoodBoardImage & {
+  status?: 'love' | 'maybe' | 'pass';
+};
 
 interface MoodBoardProps {
   userRole: 'planner' | 'couple';
@@ -17,17 +39,17 @@ export const MoodBoard: React.FC<MoodBoardProps> = ({ userRole }) => {
 const [uploading, setUploading] = useState(false);
 const [visionDescription, setVisionDescription] = useState('');
 const [lastUploadedVisionNote, setLastUploadedVisionNote] = useState('');
-const [uploadCategory, setUploadCategory] = useState('other');
-const [lastUploadedCategory, setLastUploadedCategory] = useState('other');
-const [selectedImage, setSelectedImage] = useState<any>(null);
-const [mockUploadedImages, setMockUploadedImages] = useState<any[]>([]);
+const [uploadCategory, setUploadCategory] = useState<MoodBoardImageState['category']>('other');
+const [lastUploadedCategory, setLastUploadedCategory] = useState<MoodBoardImageState['category']>('other');
+const [selectedImage, setSelectedImage] = useState<MoodBoardImageState | null>(null);
+const [mockUploadedImages, setMockUploadedImages] = useState<MoodBoardImageState[]>([]);
 const [isEditingSelectedImage, setIsEditingSelectedImage] = useState(false);
 const [editedImageTitle, setEditedImageTitle] = useState('');
 const [editedImageNote, setEditedImageNote] = useState('');
-const [editedImageCategory, setEditedImageCategory] = useState('other');
-const [editedImageStatus, setEditedImageStatus] = useState('maybe');
-const [editableExistingImages, setEditableExistingImages] = useState<any[]>([]);
-const [imageComments, setImageComments] = useState<Record<string, any[]>>({});
+const [editedImageCategory, setEditedImageCategory] = useState<MoodBoardImageState['category']>('other');
+const [editedImageStatus, setEditedImageStatus] = useState<'love' | 'maybe' | 'pass'>('maybe');
+const [editableExistingImages, setEditableExistingImages] = useState<MoodBoardImageState[]>([]);
+const [imageComments, setImageComments] = useState<Record<string, MoodBoardComment[]>>({});
 const [newComment, setNewComment] = useState('');
 const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 const [collapsedReplies, setCollapsedReplies] = useState<Record<string, boolean>>({});
@@ -35,6 +57,7 @@ const [highlightedReplyId, setHighlightedReplyId] = useState<string | null>(null
 const commentsEndRef = useRef<HTMLDivElement | null>(null);
 const highlightTimeoutRef = useRef<number | null>(null);
 const replyRefs = useRef<Record<string, HTMLDivElement | null>>({});
+const uploadInputRef = useRef<HTMLInputElement | null>(null);
 const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
 const [isTransitioningImage, setIsTransitioningImage] = useState(false);
 const [decisionFlash, setDecisionFlash] = useState<'love' | 'pass' | null>(null);
@@ -194,7 +217,7 @@ const handleUpdateImageStatus = (
   nextStatus: 'love' | 'maybe' | 'pass'
 ) => {
   setLastAction(null);
-  const updateImage = (img: any) =>
+  const updateImage = (img: MoodBoardImageState) =>
     img.id === imageId ? { ...img, status: nextStatus } : img;
 
   if (imageId.startsWith('mock-')) {
@@ -204,14 +227,14 @@ const handleUpdateImageStatus = (
   }
 
   if (selectedImage?.id === imageId) {
-    setSelectedImage((prev: any) =>
+    setSelectedImage((prev) =>
       prev ? { ...prev, status: nextStatus } : prev
     );
     setEditedImageStatus(nextStatus);
   }
 };
 
-const openImageWithTransition = (nextImage: any) => {
+const openImageWithTransition = (nextImage: MoodBoardImageState) => {
   if (!nextImage) return;
   if (isTransitioningImage) return;
 
@@ -416,7 +439,7 @@ setHighlightedReplyId(reply.id);
 
       const previewUrl = URL.createObjectURL(file);
 
-const newMockImage = {
+const newMockImage: MoodBoardImageState = {
   id: `mock-${Date.now()}`,
   title: file.name.replace(/\.[^/.]+$/, ''),
   url: previewUrl,
@@ -755,7 +778,7 @@ const filteredImages = allMoodBoardImages
               {isEditingSelectedImage ? (
   <select
     value={editedImageCategory}
-    onChange={(e) => setEditedImageCategory(e.target.value)}
+    onChange={(e) => setEditedImageCategory(e.target.value as MoodBoardImageState['category'])}
     className="w-full sm:w-auto rounded-xl border border-gold/20 bg-white px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-gold/30"
   >
     {categories
@@ -776,7 +799,7 @@ const filteredImages = allMoodBoardImages
 {isEditingSelectedImage ? (
   <select
     value={editedImageStatus}
-    onChange={(e) => setEditedImageStatus(e.target.value)}
+    onChange={(e) => setEditedImageStatus(e.target.value as 'love' | 'maybe' | 'pass')}
     className="w-full sm:w-auto rounded-xl border border-gold/20 bg-white px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-gold/30"
   >
     <option value="love">💛 Love it</option>
@@ -999,7 +1022,7 @@ const filteredImages = allMoodBoardImages
   {(comment.replies || []).length > 0 && collapsedReplies[comment.id] && (
   <div
   className={`mt-3 space-y-2 rounded-xl px-3 py-3 transition-all duration-300 ${
-    (comment.replies || []).some((reply: any) => reply.id === highlightedReplyId)
+    (comment.replies || []).some((reply: MoodBoardReply) => reply.id === highlightedReplyId)
       ? 'border border-gold/30 bg-gold/10 ring-1 ring-gold/20'
       : 'border border-gold/15 bg-white/60'
   }`}
@@ -1011,7 +1034,7 @@ const filteredImages = allMoodBoardImages
 
     {(() => {
       const latestReply = [...(comment.replies || [])].sort(
-        (a: any, b: any) =>
+        (a: MoodBoardReply, b: MoodBoardReply) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )[0];
 
@@ -1090,7 +1113,7 @@ const filteredImages = allMoodBoardImages
 )}
     {(comment.replies || []).length > 0 && !collapsedReplies[comment.id] && (
   <div className="mt-4 space-y-3 border-l border-gold/20 pl-4">
-    {(comment.replies || []).map((reply: any) => (
+    {(comment.replies || []).map((reply: MoodBoardReply) => (
   <div
     key={reply.id}
     ref={(el) => {
@@ -1611,29 +1634,26 @@ const filteredImages = allMoodBoardImages
             ))}
           </div>
           ) : (
-            <div className="py-12 sm:py-16 lg:py-20 text-center">
-              <div className="inline-block mb-6">
-                <p className="text-6xl mb-4">✨</p>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-serif text-charcoal mb-3">
-  {allMoodBoardImages.length > 0
-    ? 'No images match these filters'
-    : 'Start Your Inspiration Board'}
-</h3>
-<p className="text-sm sm:text-base text-slate max-w-md mx-auto mb-6 sm:mb-8">
-  {allMoodBoardImages.length > 0
-    ? 'Try changing the category or status filters to see more inspiration images.'
-    : userRole === 'planner'
-    ? 'Begin collecting inspiration images and vision notes to align on the visual direction with your couple. Set the tone for your wedding.'
-    : 'Share your vision with your planner. Upload photos and add notes about the style, mood, or details you love.'}
-</p>
-              {userRole === 'planner' && (
-                <button className="btn-primary">📸 Upload Your Inspiration</button>
-              )}
-              {userRole === 'couple' && (
-                <button className="btn-primary">📸 Upload Your Inspiration</button>
-              )}
-              <p className="text-xs text-slate italic mt-4">PNG, JPG, WebP up to 5MB each</p>
+            <div className="py-12 sm:py-16 lg:py-20">
+              <EmptyState
+                icon="✨"
+                title={
+                  allMoodBoardImages.length > 0
+                    ? 'No images match these filters'
+                    : 'Start Your Inspiration Board'
+                }
+                message={
+                  allMoodBoardImages.length > 0
+                    ? 'Try changing the category or status filters to see more inspiration images.'
+                    : userRole === 'planner'
+                    ? 'Begin collecting inspiration images and vision notes to align on the visual direction with your couple. Set the tone for your wedding.'
+                    : 'Share your vision with your planner. Upload photos and add notes about the style, mood, or details you love.'
+                }
+                actionLabel="Upload inspiration"
+                onAction={() => uploadInputRef.current?.click()}
+                className="py-16"
+              />
+              <p className="text-xs text-slate italic mt-4 text-center">PNG, JPG, WebP up to 5MB each</p>
             </div>
           )}
         </div>
@@ -1650,7 +1670,7 @@ const filteredImages = allMoodBoardImages
   </label>
   <select
     value={uploadCategory}
-    onChange={(e) => setUploadCategory(e.target.value)}
+    onChange={(e) => setUploadCategory(e.target.value as MoodBoardImageState['category'])}
     className="w-full rounded-xl border border-gold/20 bg-white px-4 py-3 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-gold/30"
   >
     {categories
@@ -1689,6 +1709,7 @@ const filteredImages = allMoodBoardImages
 </div>
             <label className="inline-block">
               <input
+                ref={uploadInputRef}
                 type="file"
                 onChange={handleImageUpload}
                 disabled={uploading}
@@ -1696,9 +1717,10 @@ const filteredImages = allMoodBoardImages
                 className="hidden"
               />
               <button
-  onClick={(e) => (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement)?.click()}
-  disabled={uploading}
-  className="btn-primary w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => uploadInputRef.current?.click()}
+                disabled={uploading}
+                className="btn-primary w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {uploading ? 'Uploading...' : 'Upload Images'}
               </button>

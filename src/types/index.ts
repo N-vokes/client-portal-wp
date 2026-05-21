@@ -17,7 +17,7 @@ export interface TimelineEvent {
   assignedTo?: string;
 }
 
-export type TimelineEventInput = Omit<TimelineEvent, 'id' | 'completed'>;
+export type TimelineEventInput = Omit<TimelineEvent, 'id'>;
 
 export type TimelineAction =
   | { type: 'CREATE'; data: TimelineEventInput }

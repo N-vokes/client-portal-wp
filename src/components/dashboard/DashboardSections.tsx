@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { EmptyState } from '../../components/StateCards';
 
 import heroImage from '../../assets/images/hero/hero.jpg';
 import type {
@@ -82,8 +83,11 @@ type DashboardContractsProps = {
 export const DashboardContracts: React.FC<DashboardContractsProps> = ({
   heading,
   recentContracts,
-}) => (
-  <div className="mb-16">
+}) => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="mb-16">
     <div className="flex items-center justify-between mb-6">
       <h2 className="text-2xl font-serif text-charcoal">
         {heading}
@@ -95,9 +99,14 @@ export const DashboardContracts: React.FC<DashboardContractsProps> = ({
     </div>
 
     {recentContracts.length === 0 ? (
-      <p className="text-slate italic">
-        No contracts uploaded yet.
-      </p>
+      <EmptyState
+        icon="📄"
+        title="No contracts uploaded yet"
+        message="Keep your wedding agreement library complete by uploading or linking your first contract. Contracts help everyone stay aligned."
+        actionLabel="View all contracts"
+        onAction={() => navigate('/contracts')}
+        className="py-12"
+      />
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {recentContracts.map((contract) => (
@@ -130,7 +139,8 @@ export const DashboardContracts: React.FC<DashboardContractsProps> = ({
       </div>
     )}
   </div>
-);
+  );
+};
 
 type DashboardFinalCtaProps = {
   primaryAction: PrimaryAction;

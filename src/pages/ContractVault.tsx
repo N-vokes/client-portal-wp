@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { useWedding } from '../contexts/WeddingContext';
-import { useToast } from '../contexts/ToastContext';
+import React, { useRef, useState } from 'react';
+import { useWedding } from '../contexts/useWedding';
+import { useToast } from '../contexts/useToast';
 import { ContractVaultSkeleton } from '../components/Skeleton';
 import { validators, getErrorMessage } from '../utils/validation';
+import { EmptyState, ErrorState } from '../components/StateCards';
 
 interface ContractVaultProps {
   userRole: 'planner' | 'couple';
@@ -13,6 +14,8 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
   const { addToast } = useToast();
   const [selectedType, setSelectedType] = useState<string>('all');
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const vendorTypes = [
     { id: 'all', label: 'All Vendors', icon: '📋' },
@@ -62,7 +65,9 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
     });
 
     if (validationErrors.length > 0) {
-      addToast(validationErrors[0].message, 'error');
+      const message = validationErrors[0].message;
+      setUploadError(message);
+      addToast(message, 'error');
       return;
     }
 
@@ -73,7 +78,9 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
       addToast('Contract uploaded successfully', 'success');
       event.target.value = ''; // Reset file input
     } catch (error) {
-      addToast(getErrorMessage(error), 'error');
+      const message = getErrorMessage(error);
+      setUploadError(message);
+      addToast(message, 'error');
     } finally {
       setUploading(false);
     }
@@ -97,6 +104,18 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-8 py-12">
+        {uploadError && (
+          <div className="mb-10">
+            <ErrorState
+              icon="⚠️"
+              title="Upload failed"
+              message={uploadError}
+              actionLabel="Try again"
+              onAction={() => fileInputRef.current?.click()}
+            />
+          </div>
+        )}
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="card text-center">
@@ -190,22 +209,19 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
               </div>
             ))
           ) : (
-            <div className="col-span-3 py-20 text-center">
-              <div className="inline-block mb-6">
-                <p className="text-6xl mb-4">📄</p>
-              </div>
-              <h3 className="text-2xl font-serif text-charcoal mb-3">No Contracts Yet</h3>
-              <p className="text-slate max-w-md mx-auto mb-8">
-                {userRole === 'planner'
-                  ? 'Start building your vendor agreement library. Upload the first contract to establish a complete record of all commitments.'
-                  : 'Your planner will upload vendor contracts here. Each agreement will be stored securely and accessible anytime.'}
-              </p>
-              {userRole === 'planner' && (
-                <button className="btn-primary">📤 Upload First Contract</button>
-              )}
-              {userRole === 'couple' && (
-                <p className="text-xs text-slate italic">📧 Contracts will appear here as your planner uploads them</p>
-              )}
+            <div className="col-span-3">
+              <EmptyState
+                icon="📄"
+                title="No contracts yet"
+                message={
+                  userRole === 'planner'
+                    ? 'Start building your vendor agreement library. Upload the first contract to establish a complete record of all commitments.'
+                    : 'Your planner will upload vendor contracts here. Each agreement will be stored securely and accessible anytime.'
+                }
+                actionLabel={userRole === 'planner' ? 'Upload first contract' : undefined}
+                onAction={userRole === 'planner' ? () => fileInputRef.current?.click() : undefined}
+                className="py-20"
+              />
             </div>
           )}
         </div>

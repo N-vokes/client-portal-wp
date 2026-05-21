@@ -1,3 +1,6 @@
+import { calculateDaysUntil } from '../utils/formatting';
+export { calculateProgressPercent } from '../utils/progress';
+
 export type DashboardStat = {
   label: string;
   value: string;
@@ -85,10 +88,7 @@ export const mapUpcomingMilestones = (
     .map((event) => ({
       id: String(event.id),
       title: event.title,
-      daysUntil: Math.ceil(
-        (new Date(event.date).getTime() - Date.now()) /
-          (1000 * 60 * 60 * 24)
-      ),
+      daysUntil: calculateDaysUntil(event.date),
       category: event.category,
     }));
 
@@ -214,17 +214,6 @@ export const getNextAction = (
         link: '/moodboard',
       };
 
-export const calculateProgressPercent = (
-  timelineEvents: Array<{ completed: boolean }> = []
-): number => {
-  const completedCount = timelineEvents.filter((e) => e.completed).length;
-  const totalCount = timelineEvents.length;
-
-  return totalCount > 0
-    ? Math.round((completedCount / totalCount) * 100)
-    : 0;
-};
-
 export const getPrimaryAction = (
   userRole: 'planner' | 'couple'
 ): PrimaryAction =>
@@ -253,18 +242,4 @@ function getVendorIcon(type?: string) {
       other: '📦',
     }[type || 'other'] || '📦'
   );
-}
-
-function calculateDaysUntil(date?: string): number {
-  if (!date) return 0;
-
-  const parsed = new Date(date);
-
-  if (isNaN(parsed.getTime())) {
-    return 0;
-  }
-
-  const diff = parsed.getTime() - Date.now();
-
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }

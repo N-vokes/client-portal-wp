@@ -21,7 +21,7 @@ export const db = {
     return data;
   },
 
-  async addTimelineEvent(event: any) {
+  async addTimelineEvent(event: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('timeline_events')
       .insert([event])
@@ -31,7 +31,7 @@ export const db = {
     return data[0];
   },
 
-  async updateTimelineEvent(id: string, updates: any) {
+  async updateTimelineEvent(id: string, updates: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('timeline_events')
       .update(updates)
@@ -63,7 +63,7 @@ export const db = {
     return data;
   },
 
-  async addContract(contract: any) {
+  async addContract(contract: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('contracts')
       .insert([contract])
@@ -94,7 +94,7 @@ export const db = {
     return data;
   },
 
-  async addMoodBoardImage(image: any) {
+  async addMoodBoardImage(image: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('mood_board_images')
       .insert([image])

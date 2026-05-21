@@ -1,37 +1,38 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { TimelineEvent, Contract, MoodBoardImage, WeddingData, TimelineAction, TimelineEventInput, UserRole } from '../types';
 import { db } from '../lib/supabase';
+import { WeddingContext, type WeddingContextType } from './WeddingContextValue';
 
-interface WeddingContextType {
-  wedding: WeddingData | null;
-  timelineEvents: TimelineEvent[];
-  contracts: Contract[];
-  moodBoardImages: MoodBoardImage[];
-  loading: boolean;
-  error: string | null;
-  lastUpdated: number | null;
-  isUpdating: boolean;
-  
-  // Timeline actions
-  createTimelineEvent: (event: Omit<TimelineEvent, 'id' | 'completed'>) => Promise<void>;
-  addTimelineEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<void>;
-  updateTimelineEvent: (id: string, updates: Partial<TimelineEvent>) => Promise<void>;
-  deleteTimelineEvent: (id: string) => Promise<void>;
-  handleTimelineAction: (action: TimelineAction, userRole: UserRole) => Promise<void>;
-  
-  // Contract actions
-  addContract: (contract: Omit<Contract, 'id'>) => Promise<void>;
-  deleteContract: (id: string) => Promise<void>;
-  
-  // Mood board actions
-  addMoodBoardImage: (image: Omit<MoodBoardImage, 'id'>) => Promise<void>;
-  deleteMoodBoardImage: (id: string) => Promise<void>;
-  
-  // Refresh
-  refreshData: () => Promise<void>;
-}
+type DbTimelineEvent = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  category: TimelineEvent['category'];
+  completed: boolean;
+  assigned_to?: string;
+};
 
-const WeddingContext = createContext<WeddingContextType | undefined>(undefined);
+type DbContract = {
+  id: string;
+  vendor_name: string;
+  vendor_type: Contract['vendorType'];
+  file_name: string;
+  file_url: string;
+  uploaded_date: string;
+  amount?: number;
+  notes?: string;
+};
+
+type DbMoodBoardImage = {
+  id: string;
+  url: string;
+  title: string;
+  category: MoodBoardImage['category'];
+  uploaded_by: string;
+  uploaded_date: string;
+  notes?: string;
+};
 
 export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [wedding, setWedding] = useState<WeddingData | null>(null);
@@ -44,10 +45,6 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Initialize and load data
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const sortTimelineEvents = (events: TimelineEvent[]) =>
     [...events].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -60,79 +57,7 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     'celebration',
   ];
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Get or create demo wedding
-      const weddingData = await db.getOrCreateDemoWedding();
-      
-      // Transform wedding data from snake_case to camelCase
-      setWedding({
-        id: weddingData.id,
-        coupleNames: weddingData.couple_names || weddingData.coupleNames,
-        weddingDate: weddingData.wedding_date || weddingData.weddingDate,
-        timeline: [],
-        contracts: [],
-        moodBoard: [],
-        createdDate: weddingData.created_date || weddingData.createdDate,
-      });
-
-      // Load all data for this wedding
-      const [events, contractsList, images] = await Promise.all([
-        db.getTimelineEvents(weddingData.id),
-        db.getContracts(weddingData.id),
-        db.getMoodBoardImages(weddingData.id),
-      ]);
-
-      setTimelineEvents(
-        events.map((e: any) => ({
-          id: e.id,
-          title: e.title,
-          description: e.description,
-          date: e.date,
-          category: e.category,
-          completed: e.completed,
-          assignedTo: e.assigned_to,
-        }))
-      );
-
-      setContracts(
-        contractsList.map((c: any) => ({
-          id: c.id,
-          vendorName: c.vendor_name,
-          vendorType: c.vendor_type,
-          fileName: c.file_name,
-          fileUrl: c.file_url,
-          uploadedDate: c.uploaded_date,
-          amount: c.amount,
-          notes: c.notes,
-        }))
-      );
-
-      setMoodBoardImages(
-        images.map((i: any) => ({
-          id: i.id,
-          url: i.url,
-          title: i.title,
-          category: i.category,
-          uploadedBy: i.uploaded_by,
-          uploadedDate: i.uploaded_date,
-          notes: i.notes,
-        }))
-      );
-    } catch (err) {
-      console.error('Failed to load data:', err);
-      setError('Failed to load wedding data. Using demo mode.');
-      loadDemoData();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fallback to demo data if Supabase is not configured
-  const loadDemoData = () => {
+  const loadDemoData = useCallback(() => {
     setWedding({
       id: 'demo-1',
       coupleNames: 'Sarah & Michael',
@@ -204,7 +129,83 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
         notes: 'Love the blush and cream color combination',
       },
     ]);
-  };
+  }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get or create demo wedding
+      const weddingData = await db.getOrCreateDemoWedding();
+      
+      // Transform wedding data from snake_case to camelCase
+      setWedding({
+        id: weddingData.id,
+        coupleNames: weddingData.couple_names || weddingData.coupleNames,
+        weddingDate: weddingData.wedding_date || weddingData.weddingDate,
+        timeline: [],
+        contracts: [],
+        moodBoard: [],
+        createdDate: weddingData.created_date || weddingData.createdDate,
+      });
+
+      // Load all data for this wedding
+      const [events, contractsList, images] =
+        (await Promise.all([
+          db.getTimelineEvents(weddingData.id),
+          db.getContracts(weddingData.id),
+          db.getMoodBoardImages(weddingData.id),
+        ])) as [DbTimelineEvent[], DbContract[], DbMoodBoardImage[]];
+
+      setTimelineEvents(
+        events.map((e) => ({
+          id: e.id,
+          title: e.title,
+          description: e.description,
+          date: e.date,
+          category: e.category,
+          completed: e.completed,
+          assignedTo: e.assigned_to,
+        }))
+      );
+
+      setContracts(
+        contractsList.map((c) => ({
+          id: c.id,
+          vendorName: c.vendor_name,
+          vendorType: c.vendor_type,
+          fileName: c.file_name,
+          fileUrl: c.file_url,
+          uploadedDate: c.uploaded_date,
+          amount: c.amount,
+          notes: c.notes,
+        }))
+      );
+
+      setMoodBoardImages(
+        images.map((i) => ({
+          id: i.id,
+          url: i.url,
+          title: i.title,
+          category: i.category,
+          uploadedBy: i.uploaded_by,
+          uploadedDate: i.uploaded_date,
+          notes: i.notes,
+        }))
+      );
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      setError('Failed to load wedding data. Using demo mode.');
+      loadDemoData();
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const addTimelineEvent = async (event: Omit<TimelineEvent, 'id'>) => {
     if (!wedding) return;
@@ -240,10 +241,8 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
-  const createTimelineEvent = async (
-    event: Omit<TimelineEvent, 'id' | 'completed'>
-  ) => {
-    await addTimelineEvent({ ...event, completed: false });
+  const createTimelineEvent = async (event: Omit<TimelineEvent, 'id'>) => {
+    await addTimelineEvent(event);
   };
 
   const updateTimelineEvent = async (id: string, updates: Partial<TimelineEvent>) => {
@@ -308,7 +307,7 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
           description: data.description,
           date: data.date,
           category: data.category,
-          completed: false,
+          completed: data.completed ?? false,
           assignedTo: data.assignedTo,
         };
 
@@ -317,7 +316,7 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       if (action.type === 'UPDATE') {
         const { id, data } = action;
-        if (data.category && !validCategories.includes(data.category as any)) {
+        if (data.category && !validCategories.includes(data.category)) {
           console.warn('Invalid category for update:', data.category);
           return;
         }
@@ -368,8 +367,8 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
         notes: contract.notes,
       });
 
-      setContracts([
-        ...contracts,
+      setContracts((currentContracts) => [
+        ...currentContracts,
         {
           id: newContract.id,
           vendorName: newContract.vendor_name,
@@ -411,8 +410,8 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
         notes: image.notes,
       });
 
-      setMoodBoardImages([
-        ...moodBoardImages,
+      setMoodBoardImages((currentImages) => [
+        ...currentImages,
         {
           id: newImage.id,
           url: newImage.url,
@@ -467,10 +466,3 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
   return <WeddingContext.Provider value={value}>{children}</WeddingContext.Provider>;
 };
 
-export const useWedding = () => {
-  const context = useContext(WeddingContext);
-  if (context === undefined) {
-    throw new Error('useWedding must be used within a WeddingProvider');
-  }
-  return context;
-};

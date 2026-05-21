@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useWedding } from '../contexts/WeddingContext';
+import { useWedding } from '../contexts/useWedding';
 import { planningFlowData } from '../data/planningFlowData';
 import {
   getDashboardFocusMoment,

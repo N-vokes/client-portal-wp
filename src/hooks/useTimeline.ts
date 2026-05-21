@@ -1,26 +1,19 @@
 import { useMemo, useState } from 'react';
 import type { TimelineEvent } from '../types';
+import { calculateProgressPercent } from '../utils/progress';
+import {
+  timelineCategoryFilters,
+  validTimelineCategories,
+  isValidTimelineCategory,
+} from '../utils/timeline';
 
-type TimelineCategory = TimelineEvent['category'];
-type CategoryFilter = TimelineCategory | 'all';
-
-const validCategories: TimelineCategory[] = [
-  'planning',
-  'design',
-  'logistics',
-  'celebration',
-];
-
-const isValidCategory = (
-  category: string
-): category is TimelineCategory =>
-  validCategories.includes(category as TimelineCategory);
+type CategoryFilter = typeof timelineCategoryFilters[number];
 
 export function useTimeline(timelineEvents: TimelineEvent[] | null) {
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryFilter>('all');
 
-  const safeEvents = timelineEvents ?? [];
+  const safeEvents = useMemo(() => timelineEvents ?? [], [timelineEvents]);
 
   const filteredEvents = useMemo(() => {
     if (selectedCategory === 'all') return safeEvents;
@@ -36,20 +29,13 @@ export function useTimeline(timelineEvents: TimelineEvent[] | null) {
   );
 
   const upcomingCount = useMemo(
-    () => safeEvents.filter((e) => !e.completed).length,
-    [safeEvents]
+    () => Math.max(0, safeEvents.length - completedCount),
+    [safeEvents.length, completedCount]
   );
 
-  const progressPercent = useMemo(() => {
-    const total = safeEvents.length;
-    if (total === 0) return 0;
-
-    return Math.round((completedCount / total) * 100);
-  }, [safeEvents, completedCount]);
-
-  const cappedProgress = Math.min(
-    100,
-    Math.max(0, progressPercent)
+  const progressPercent = useMemo(
+    () => calculateProgressPercent(safeEvents),
+    [safeEvents]
   );
 
   return {
@@ -59,8 +45,8 @@ export function useTimeline(timelineEvents: TimelineEvent[] | null) {
     safeEvents,
     completedCount,
     upcomingCount,
-    progressPercent: cappedProgress,
-    isValidCategory,
-    validCategories,
+    progressPercent,
+    isValidCategory: isValidTimelineCategory,
+    validCategories: validTimelineCategories,
   };
 }
