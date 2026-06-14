@@ -12,10 +12,9 @@ export interface GettingStartedStep {
 
 interface GettingStartedGuideProps {
   steps: GettingStartedStep[];
-  userRole: 'planner' | 'couple';
 }
 
-export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({ steps, userRole }) => {
+export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({ steps }) => {
   const navigate = useNavigate();
   const completedCount = steps.filter((s) => s.completed).length;
   const progressPercent = (completedCount / steps.length) * 100;

@@ -279,7 +279,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {showGettingStarted && (
-          <GettingStartedGuide steps={gettingStartedSteps} userRole={userRole} />
+          <GettingStartedGuide steps={gettingStartedSteps} />
         )}
 
         {/* ⚠️ PLANNER-ONLY: Focus Panel for daily workflow guidance */}
