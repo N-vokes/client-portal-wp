@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useWedding } from '../../contexts/useWedding';
 
 interface NavigationProps {
   userRole: 'planner' | 'couple';
@@ -8,16 +9,17 @@ interface NavigationProps {
 
 export const Navigation: React.FC<NavigationProps> = ({ userRole, onBackToEntry }) => {
   const location = useLocation();
+  const { wedding } = useWedding();
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: '🏠' },
-    { path: '/timeline', label: 'Timeline', icon: '📅' },
-    { path: '/contracts', label: 'Contracts', icon: '📄' },
-    { path: '/moodboard', label: 'Mood Board', icon: '✨' },
+    { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+    { path: '/dashboard/timeline', label: 'Timeline', icon: '📅' },
+    { path: '/dashboard/contracts', label: 'Contracts', icon: '📄' },
+    { path: '/dashboard/moodboard', label: 'Mood Board', icon: '✨' },
   ];
 
   if (userRole === 'planner') {
-    navItems.push({ path: '/clients', label: 'Clients', icon: '👥' });
+    navItems.push({ path: '/dashboard/clients', label: 'Clients', icon: '👥' });
   }
 
   return (
@@ -41,7 +43,7 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole, onBackToEntry 
               <Link
                 to={item.path}
                 className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-md transition-all duration-200 text-sm md:text-base ${
-                  location.pathname === item.path
+                  location.pathname === item.path || location.pathname.startsWith(item.path + '/')
                     ? 'bg-sand text-charcoal font-semibold shadow-sm'
                     : 'text-slate hover:text-charcoal hover:bg-sand/40'
                 }`}
@@ -56,7 +58,9 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole, onBackToEntry 
         {/* User Info + Switch View */}
 <div className="flex flex-col items-start gap-2 text-left md:items-end md:text-right text-sm self-start md:self-auto">
   <div>
-    <p className="text-charcoal font-medium break-words">Demo Wedding - Sarah & Michael</p>
+    <p className="text-charcoal font-medium break-words">
+      {wedding?.coupleNames ?? 'No Wedding Selected'}
+    </p>
     <p className="text-slate text-xs">{userRole === 'planner' ? 'Planner' : 'Couple'}</p>
   </div>
 

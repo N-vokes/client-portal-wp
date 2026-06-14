@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
 import { useWedding } from '../contexts/useWedding';
+import type { WeddingState } from '../contexts/WeddingContextValue';
 import { planningFlowData } from '../data/planningFlowData';
 import {
   getDashboardFocusMoment,
@@ -27,6 +28,8 @@ import type {
 
 export type DashboardModel = {
   loading: boolean;
+  weddingState: WeddingState;
+  error: string | null;
   heroCopy: DashboardHeroCopy;
   stats: DashboardStat[];
   focusMoment: FocusMoment;
@@ -43,28 +46,34 @@ export const useDashboard = (
 ): DashboardModel => {
   const {
     wedding,
+    weddingState,
     timelineEvents,
     contracts,
     moodBoardImages,
     loading,
+    error,
   } = useWedding();
 
+  // ⚠️ WEDDING-SCOPED: All data accessed through wedding context
+  // Gracefully handle no-auth and no-wedding-found states
+  const isWeddingLoaded = weddingState === 'loaded' && wedding;
+
   useEffect(() => {
-    const coupleNames = wedding?.coupleNames || 'Demo Couple';
+    const coupleNames = isWeddingLoaded ? wedding.coupleNames : 'Wedding Portal';
 
     document.title =
       userRole === 'planner'
         ? 'The Ever After Wedding Portal – Planner Dashboard'
-        : `The Ever After Wedding Portal – ${coupleNames} (Demo)`;
-  }, [userRole, wedding?.coupleNames]);
+        : `The Ever After Wedding Portal – ${coupleNames}`;
+  }, [userRole, wedding?.coupleNames, isWeddingLoaded]);
 
-  const safeTimeline = timelineEvents || [];
-  const safeContracts = contracts || [];
-  const safeMoodBoard = moodBoardImages || [];
+  const safeTimeline = isWeddingLoaded ? timelineEvents || [] : [];
+  const safeContracts = isWeddingLoaded ? contracts || [] : [];
+  const safeMoodBoard = isWeddingLoaded ? moodBoardImages || [] : [];
 
   const heroCopy = getDashboardHeroCopy(
     userRole,
-    wedding?.coupleNames
+    isWeddingLoaded ? wedding.coupleNames : undefined
   );
 
   const upcomingMilestones = mapUpcomingMilestones(safeTimeline);
@@ -76,13 +85,13 @@ export const useDashboard = (
           safeTimeline.length,
           safeContracts.length,
           safeMoodBoard.length,
-          wedding?.weddingDate
+          isWeddingLoaded ? wedding.weddingDate : undefined
         )
       : getCoupleStats(
           safeTimeline,
           safeMoodBoard.length,
           safeContracts.length,
-          wedding?.weddingDate
+          isWeddingLoaded ? wedding.weddingDate : undefined
         );
 
   const activePlanningFlow = mapActivePlanningFlow(
@@ -98,6 +107,8 @@ export const useDashboard = (
 
   return {
     loading,
+    weddingState,
+    error,
     heroCopy,
     stats,
     focusMoment,

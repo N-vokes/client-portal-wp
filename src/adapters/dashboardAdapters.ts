@@ -62,17 +62,25 @@ export const getDashboardHeroCopy = (
 ): DashboardHeroCopy => {
   if (userRole === 'planner') {
     return {
-      heading: `${coupleNames || 'Demo Couple'} — Planner View`,
-      message: 'A calm overview of planning progress and decisions.',
+      heading: coupleNames ? `${coupleNames} — Planner Dashboard` : 'No Wedding Selected',
+      message: coupleNames
+        ? 'Manage milestones, contracts, and inspiration in one elegant workspace.'
+        : 'Select a wedding to begin planning.',
     };
   }
 
   return {
-    heading: `${coupleNames || 'Your Wedding'} ✨`,
-    message: 'A calm view of your wedding journey and shared progress.',
+    heading: coupleNames ? `${coupleNames} — Wedding Dashboard` : 'No Wedding Selected',
+    message: coupleNames
+      ? 'Keep your planning details organized, share progress, and stay aligned.'
+      : 'Select a wedding to see your wedding journey.',
   };
 };
 
+/**
+ * Transform upcoming timeline milestones for dashboard display.
+ * ⚠️ WEDDING-SCOPED: Transforms events from a specific wedding context
+ */
 export const mapUpcomingMilestones = (
   timelineEvents: Array<{
     id: number | string;
@@ -92,6 +100,10 @@ export const mapUpcomingMilestones = (
       category: event.category,
     }));
 
+/**
+ * Transform recent contracts for dashboard display.
+ * ⚠️ WEDDING-SCOPED: Transforms contracts from a specific wedding context
+ */
 export const mapRecentContracts = (
   contracts: Array<{
     id: number | string;
@@ -109,6 +121,10 @@ export const mapRecentContracts = (
     fileUrl: contract.fileUrl || '#',
   }));
 
+/**
+ * Calculate dashboard stats for planner view.
+ * ⚠️ WEDDING-SCOPED: Stats are generated from a specific wedding's data
+ */
 export const getPlannerStats = (
   timelineCount: number,
   contractCount: number,
@@ -137,6 +153,10 @@ export const getPlannerStats = (
   },
 ];
 
+/**
+ * Calculate dashboard stats for couple view.
+ * ⚠️ WEDDING-SCOPED: Stats are generated from a specific wedding's data
+ */
 export const getCoupleStats = (
   timelineEvents: Array<{ completed: boolean }> = [],
   moodBoardCount: number,
@@ -165,6 +185,10 @@ export const getCoupleStats = (
   },
 ];
 
+/**
+ * Transform planning flow items for dashboard display.
+ * ⚠️ WEDDING-SCOPED: Transforms flow items within a wedding context
+ */
 export const mapActivePlanningFlow = (
   items: Array<{
     id: number | string;

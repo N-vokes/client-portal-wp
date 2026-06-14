@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useWedding } from '../contexts/useWedding';
+import { usePlannerActions } from '../domain/plannerActions';
 import { useToast } from '../contexts/useToast';
 import { ContractVaultSkeleton } from '../components/Skeleton';
 import { validators, getErrorMessage } from '../utils/validation';
@@ -10,7 +11,8 @@ interface ContractVaultProps {
 }
 
 export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
-  const { contracts, deleteContract, loading } = useWedding();
+  const { contracts, loading } = useWedding();
+  const { executePlannerAction } = usePlannerActions();
   const { addToast } = useToast();
   const [selectedType, setSelectedType] = useState<string>('all');
   const [uploading, setUploading] = useState(false);
@@ -46,7 +48,7 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this contract?')) {
       try {
-        await deleteContract(id);
+        await executePlannerAction({ type: 'DELETE_CONTRACT', id });
         addToast('Contract deleted successfully', 'success');
       } catch (error) {
         addToast(getErrorMessage(error), 'error');

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { TimelineEvent, Contract, MoodBoardImage, WeddingData, TimelineAction, TimelineEventInput, UserRole } from '../types';
-import { db } from '../lib/supabase';
-import { WeddingContext, type WeddingContextType } from './WeddingContextValue';
+import { db, supabase } from '../lib/supabase';
+import { WeddingContext, type WeddingContextType, type WeddingState } from './WeddingContextValue';
 
 type DbTimelineEvent = {
   id: string;
@@ -35,7 +35,10 @@ type DbMoodBoardImage = {
 };
 
 export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [authUser, setAuthUser] = useState<any | null>(null);
   const [wedding, setWedding] = useState<WeddingData | null>(null);
+  const [weddingState, setWeddingState] = useState<WeddingState>('loading');
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [moodBoardImages, setMoodBoardImages] = useState<MoodBoardImage[]>([]);
@@ -57,100 +60,74 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     'celebration',
   ];
 
-  const loadDemoData = useCallback(() => {
-    setWedding({
-      id: 'demo-1',
-      coupleNames: 'Sarah & Michael',
-      weddingDate: '2024-10-19',
-      timeline: [],
-      contracts: [],
-      moodBoard: [],
-      createdDate: new Date().toISOString(),
-    });
+  /**
+   * Load wedding data strictly for authenticated users with existing wedding records.
+   * All data must come from authenticated user state and wedding records.
+   */
+  const resolveRole = (authUser: any, weddingData: any | null): UserRole => {
+    const metadataRole = authUser?.user_metadata?.role as UserRole | undefined;
+    if (metadataRole === 'planner' || metadataRole === 'couple') {
+      return metadataRole;
+    }
 
-    setTimelineEvents([
-      {
-        id: '1',
-        title: 'Engagement Party',
-        description: 'Celebrate with close family and friends',
-        date: '2024-04-20',
-        category: 'celebration',
-        completed: true,
-      },
-      {
-        id: '2',
-        title: 'Book Venue',
-        description: 'Finalize venue reservation and contract',
-        date: '2024-05-15',
-        category: 'logistics',
-        completed: true,
-      },
-      {
-        id: '3',
-        title: 'Select Catering',
-        description: 'Meet with caterer and choose menu',
-        date: '2024-06-10',
-        category: 'planning',
-        completed: false,
-      },
-    ]);
+    if (weddingData) {
+      if (authUser.id === weddingData.planner_id) {
+        return 'planner';
+      }
+      if (authUser.id === weddingData.couple_id) {
+        return 'couple';
+      }
+    }
 
-    setContracts([
-      {
-        id: '1',
-        vendorName: 'Pinnacle Events Catering',
-        vendorType: 'caterer',
-        fileName: 'Catering-Contract-2024.pdf',
-        fileUrl: '/contracts/Catering-Contract-2024.pdf',
-        uploadedDate: '2024-05-20',
-        amount: 4500,
-        notes: 'Includes cocktail hour, plated dinner, and dessert service for 150 guests',
-      },
-      {
-        id: '2',
-        vendorName: 'Sophia Photography Studio',
-        vendorType: 'photographer',
-        fileName: 'Photography-Services-Agreement.pdf',
-        fileUrl: '/contracts/Photography-Services-Agreement.pdf',
-        uploadedDate: '2024-05-22',
-        amount: 2800,
-        notes: '10 hours coverage, engagement shoot included, 600+ edited photos',
-      },
-    ]);
-
-    setMoodBoardImages([
-      {
-        id: '1',
-        url: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=400&h=400&fit=crop',
-        title: 'Garden Roses Centerpiece',
-        category: 'flowers',
-        uploadedBy: 'Sarah',
-        uploadedDate: '2024-06-01',
-        notes: 'Love the blush and cream color combination',
-      },
-    ]);
-  }, []);
+    return 'couple';
+  };
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      setWeddingState('loading');
 
-      // Get or create demo wedding
-      const weddingData = await db.getOrCreateDemoWedding();
-      
-      // Transform wedding data from snake_case to camelCase
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const authenticatedUser = session?.user ?? null;
+      setAuthUser(authenticatedUser);
+
+      if (!authenticatedUser) {
+        setUserRole(null);
+        setWeddingState('no-auth');
+        setWedding(null);
+        setTimelineEvents([]);
+        setContracts([]);
+        setMoodBoardImages([]);
+        setError('No authenticated user found. Please log in.');
+        return;
+      }
+
+      const weddingData: any = await db.getWeddingForUser(authenticatedUser.id);
+      const resolvedRole = resolveRole(authenticatedUser, weddingData);
+      setUserRole(resolvedRole);
+
+      if (!weddingData) {
+        setWeddingState('no-wedding-found');
+        setWedding(null);
+        setTimelineEvents([]);
+        setContracts([]);
+        setMoodBoardImages([]);
+        return;
+      }
+
       setWedding({
-        id: weddingData.id,
-        coupleNames: weddingData.couple_names || weddingData.coupleNames,
-        weddingDate: weddingData.wedding_date || weddingData.weddingDate,
+        id: weddingData.id as string,
+        coupleNames: (weddingData.couple_names || weddingData.coupleNames || '') as string,
+        weddingDate: (weddingData.wedding_date || weddingData.weddingDate || '') as string,
         timeline: [],
         contracts: [],
         moodBoard: [],
-        createdDate: weddingData.created_date || weddingData.createdDate,
+        createdDate: (weddingData.created_date || weddingData.createdDate || new Date().toISOString()) as string,
       });
 
-      // Load all data for this wedding
       const [events, contractsList, images] =
         (await Promise.all([
           db.getTimelineEvents(weddingData.id),
@@ -194,10 +171,12 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
           notes: i.notes,
         }))
       );
+
+      setWeddingState('loaded');
     } catch (err) {
-      console.error('Failed to load data:', err);
-      setError('Failed to load wedding data. Using demo mode.');
-      loadDemoData();
+      console.error('Failed to load wedding data:', err);
+      setError('Failed to load wedding data. Please try again.');
+      setWeddingState('no-wedding-found');
     } finally {
       setLoading(false);
     }
@@ -207,8 +186,21 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     loadData();
   }, [loadData]);
 
+  /**
+   * Add a timeline event to the currently active wedding context.
+   * ⚠️ WEDDING-SCOPED: This operation is explicitly tied to `wedding.id`
+   * and will no-op if wedding context is not loaded.
+   */
   const addTimelineEvent = async (event: Omit<TimelineEvent, 'id'>) => {
-    if (!wedding) return;
+    if (!wedding) {
+      console.warn('[WeddingContext] addTimelineEvent: No active wedding context. Event not added.');
+      return;
+    }
+
+    if (!wedding.id) {
+      console.error('[WeddingContext] addTimelineEvent: Wedding has no ID. Invalid state.');
+      return;
+    }
 
     try {
       const newEvent = await db.addTimelineEvent({
@@ -241,11 +233,29 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  /**
+   * Create a timeline event (alias for addTimelineEvent).
+   * ⚠️ WEDDING-SCOPED: This operation is explicitly tied to the active wedding context.
+   */
   const createTimelineEvent = async (event: Omit<TimelineEvent, 'id'>) => {
     await addTimelineEvent(event);
   };
 
+  /**
+   * Update a timeline event in the currently active wedding context.
+   * ⚠️ WEDDING-SCOPED: Only updates events belonging to the current wedding.
+   */
   const updateTimelineEvent = async (id: string, updates: Partial<TimelineEvent>) => {
+    if (!wedding) {
+      console.warn('[WeddingContext] updateTimelineEvent: No active wedding context. Event not updated.');
+      return;
+    }
+
+    if (!wedding.id) {
+      console.error('[WeddingContext] updateTimelineEvent: Wedding has no ID. Invalid state.');
+      return;
+    }
+
     try {
       const dbUpdates: Record<string, unknown> = {};
       if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
@@ -270,7 +280,21 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  /**
+   * Delete a timeline event from the currently active wedding context.
+   * ⚠️ WEDDING-SCOPED: Only removes events from the current wedding's timeline.
+   */
   const deleteTimelineEvent = async (id: string) => {
+    if (!wedding) {
+      console.warn('[WeddingContext] deleteTimelineEvent: No active wedding context. Event not deleted.');
+      return;
+    }
+
+    if (!wedding.id) {
+      console.error('[WeddingContext] deleteTimelineEvent: Wedding has no ID. Invalid state.');
+      return;
+    }
+
     try {
       await db.deleteTimelineEvent(id);
       setTimelineEvents((currentEvents) =>
@@ -282,11 +306,21 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
-  // Centralized action handler for timeline with role validation and frontend-only realtime mock
+  /**
+   * Handle timeline actions with role-based authorization and wedding scoping.
+   * ⚠️ WEDDING-SCOPED: All actions operate on the currently active wedding.
+   * ⚠️ ROLE-BASED: Couples can only toggle completion; planners can perform all actions.
+   */
   const handleTimelineAction = async (action: TimelineAction, userRole: UserRole) => {
+    // Wedding context guard
+    if (!wedding || !wedding.id) {
+      console.warn('[WeddingContext] handleTimelineAction: No active wedding context. Action aborted.');
+      return;
+    }
+
     // Role enforcement: couples can only toggle complete
     if (userRole === 'couple' && action.type !== 'TOGGLE_COMPLETE') {
-      console.warn('Unauthorized action for couple:', action.type);
+      console.warn('[WeddingContext] handleTimelineAction: Unauthorized action for couple:', action.type);
       return;
     }
 
@@ -353,8 +387,21 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  /**
+   * Add a contract to the currently active wedding context.
+   * ⚠️ WEDDING-SCOPED: Contract is explicitly tied to `wedding.id`
+   * and will no-op if wedding context is not loaded.
+   */
   const addContract = async (contract: Omit<Contract, 'id'>) => {
-    if (!wedding) return;
+    if (!wedding) {
+      console.warn('[WeddingContext] addContract: No active wedding context. Contract not added.');
+      return;
+    }
+
+    if (!wedding.id) {
+      console.error('[WeddingContext] addContract: Wedding has no ID. Invalid state.');
+      return;
+    }
 
     try {
       const newContract = await db.addContract({
@@ -386,7 +433,21 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  /**
+   * Delete a contract from the currently active wedding context.
+   * ⚠️ WEDDING-SCOPED: Only removes contracts belonging to the current wedding.
+   */
   const deleteContract = async (id: string) => {
+    if (!wedding) {
+      console.warn('[WeddingContext] deleteContract: No active wedding context. Contract not deleted.');
+      return;
+    }
+
+    if (!wedding.id) {
+      console.error('[WeddingContext] deleteContract: Wedding has no ID. Invalid state.');
+      return;
+    }
+
     try {
       await db.deleteContract(id);
       setContracts(contracts.filter((contract) => contract.id !== id));
@@ -396,8 +457,21 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  /**
+   * Add a mood board image to the currently active wedding context.
+   * ⚠️ WEDDING-SCOPED: Image is explicitly tied to `wedding.id`
+   * and will no-op if wedding context is not loaded.
+   */
   const addMoodBoardImage = async (image: Omit<MoodBoardImage, 'id'>) => {
-    if (!wedding) return;
+    if (!wedding) {
+      console.warn('[WeddingContext] addMoodBoardImage: No active wedding context. Image not added.');
+      return;
+    }
+
+    if (!wedding.id) {
+      console.error('[WeddingContext] addMoodBoardImage: Wedding has no ID. Invalid state.');
+      return;
+    }
 
     try {
       const newImage = await db.addMoodBoardImage({
@@ -428,7 +502,21 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  /**
+   * Delete a mood board image from the currently active wedding context.
+   * ⚠️ WEDDING-SCOPED: Only removes images belonging to the current wedding.
+   */
   const deleteMoodBoardImage = async (id: string) => {
+    if (!wedding) {
+      console.warn('[WeddingContext] deleteMoodBoardImage: No active wedding context. Image not deleted.');
+      return;
+    }
+
+    if (!wedding.id) {
+      console.error('[WeddingContext] deleteMoodBoardImage: Wedding has no ID. Invalid state.');
+      return;
+    }
+
     try {
       await db.deleteMoodBoardImage(id);
       setMoodBoardImages(moodBoardImages.filter((image) => image.id !== id));
@@ -438,12 +526,19 @@ export const WeddingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  /**
+   * Refresh all data for the currently active wedding context.
+   * ⚠️ WEDDING-SCOPED: Reloads timeline, contracts, and mood board for the active wedding.
+   */
   const refreshData = async () => {
     await loadData();
   };
 
   const value: WeddingContextType = {
+    authUser,
     wedding,
+    weddingState,
+    userRole,
     timelineEvents,
     contracts,
     moodBoardImages,

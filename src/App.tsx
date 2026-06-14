@@ -1,13 +1,17 @@
-import React, { Suspense } from 'react';
-import { RoleEntry } from './pages/RoleEntry';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { Suspense, useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './index.css';
 import { Navigation } from './components/Navigation/Navigation';
 import { WeddingProvider } from './contexts/WeddingContext';
+import { useWedding } from './contexts/useWedding';
 import { ToastProvider } from './contexts/ToastContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Analytics } from '@vercel/analytics/react';
 import { PageLoader } from './components/PageLoader';
+import { LandingPage } from './pages/LandingPage';
+import { AuthPage } from './pages/AuthPage';
+import { OnboardingPage } from './pages/OnboardingPage';
+import { supabase } from './lib/supabase';
 
 // Lazy-loaded page components for code splitting
 const Dashboard = React.lazy(() =>
@@ -32,45 +36,93 @@ const ClientProfile = React.lazy(() =>
   import('./pages/ClientProfile').then((module) => ({ default: module.ClientProfile }))
 );
 
-type UserRole = 'planner' | 'couple';
+function ProtectedApp({ onLogout }: { onLogout: () => void }) {
+  const { authUser, loading: weddingLoading, weddingState, userRole } = useWedding();
 
-function AppContent() {
-  const [userRole, setUserRole] = React.useState<UserRole | null>(() => {
-    const savedRole = localStorage.getItem('role');
-    return savedRole === 'planner' || savedRole === 'couple'
-      ? savedRole
-      : null;
-  });
+  if (weddingLoading) {
+    return <PageLoader />;
+  }
 
-  const handleSelectRole = (role: UserRole) => {
-    localStorage.setItem('role', role);
-    setUserRole(role);
-  };
-
-  const handleBackToEntry = () => {
-    localStorage.removeItem('role');
-    setUserRole(null);
-  };
+  if (authUser && weddingState === 'no-wedding-found') {
+    return <OnboardingPage />;
+  }
 
   if (!userRole) {
-    return <RoleEntry onSelectRole={handleSelectRole} />;
+    return <PageLoader />;
   }
 
   return (
     <div className="min-h-screen bg-cream overflow-x-hidden">
-      <Navigation userRole={userRole} onBackToEntry={handleBackToEntry} />
+      <Navigation userRole={userRole} onBackToEntry={onLogout} />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<Dashboard userRole={userRole} />} />
-          <Route path="/timeline" element={<TimelinePage userRole={userRole} />} />
-          <Route path="/contracts" element={<ContractVault userRole={userRole} />} />
-          <Route path="/moodboard" element={<MoodBoard userRole={userRole} />} />
-          <Route path="/messages" element={<MessagesPage userRole={userRole} />} />
-          <Route path="/clients" element={<Clients userRole={userRole} />} />
-          <Route path="/clients/:id" element={<ClientProfile userRole={userRole} />} />
+          <Route path="/dashboard" element={<Dashboard userRole={userRole} />} />
+          <Route path="/dashboard/timeline" element={<TimelinePage userRole={userRole} />} />
+          <Route path="/dashboard/contracts" element={<ContractVault userRole={userRole} />} />
+          <Route path="/dashboard/moodboard" element={<MoodBoard userRole={userRole} />} />
+          <Route path="/dashboard/messages" element={<MessagesPage userRole={userRole} />} />
+          <Route path="/dashboard/clients" element={<Clients userRole={userRole} />} />
+          <Route path="/dashboard/clients/:id" element={<ClientProfile userRole={userRole} />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Suspense>
     </div>
+  );
+}
+
+function AppContent() {
+  const location = useLocation();
+  const [session, setSession] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      setAuthChecked(true);
+    };
+
+    initializeAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_, session) => {
+      setSession(session);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogin = async () => {
+    const { data } = await supabase.auth.getSession();
+    setSession(data.session);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/auth" element={<AuthPage onLogin={handleLogin} />} />
+      <Route
+        path="/dashboard/*"
+        element={
+          !authChecked ? (
+            <PageLoader />
+          ) : session ? (
+            <WeddingProvider>
+              <ProtectedApp onLogout={handleLogout} />
+            </WeddingProvider>
+          ) : (
+            <Navigate to="/auth" replace state={{ from: location.pathname }} />
+          )
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
@@ -79,11 +131,9 @@ function App() {
     <>
       <ErrorBoundary>
         <ToastProvider>
-          <WeddingProvider>
-            <BrowserRouter>
-              <AppContent />
-            </BrowserRouter>
-          </WeddingProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
         </ToastProvider>
       </ErrorBoundary>
 

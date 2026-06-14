@@ -295,7 +295,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ userRole }) => {
         <div className="bg-white rounded-2xl shadow-sm border border-gold/20 p-6 sm:p-8 lg:p-12 text-center max-w-lg mx-4">
           <h1 className="text-2xl sm:text-3xl font-serif text-charcoal mb-3 sm:mb-4">Client not found</h1>
 <p className="text-sm sm:text-base text-slate mb-5 sm:mb-6">The requested client profile was not found. Please select a valid client from the list.</p>
-          <Link to="/clients" className="btn-primary inline-block w-full sm:w-auto">Back to Clients</Link>
+          <Link to="/dashboard/clients" className="btn-primary inline-block w-full sm:w-auto">Back to Clients</Link>
         </div>
       </div>
     );

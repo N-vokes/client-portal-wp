@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWedding } from '../contexts/useWedding';
+import { usePlannerActions } from '../domain/plannerActions';
 import { useToast } from '../contexts/useToast';
 import { MoodBoardSkeleton } from '../components/Skeleton';
 import { validators, getErrorMessage } from '../utils/validation';
@@ -31,7 +32,8 @@ interface MoodBoardProps {
 }
 
 export const MoodBoard: React.FC<MoodBoardProps> = ({ userRole }) => {
-  const { moodBoardImages, deleteMoodBoardImage, loading } = useWedding();
+  const { moodBoardImages, loading } = useWedding();
+  const { executePlannerAction } = usePlannerActions();
   const { addToast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -170,11 +172,11 @@ useEffect(() => {
 
     try {
       if (isMockImage) {
-  setMockUploadedImages((prev) => prev.filter((img) => img.id !== id));
-} else {
-  setEditableExistingImages((prev) => prev.filter((img) => img.id !== id));
-  await deleteMoodBoardImage(id);
-}
+        setMockUploadedImages((prev) => prev.filter((img) => img.id !== id));
+      } else {
+        setEditableExistingImages((prev) => prev.filter((img) => img.id !== id));
+        await executePlannerAction({ type: 'DELETE_MOODBOARD_IMAGE', id });
+      }
       if (selectedImage?.id === id) {
   handleCloseSelectedImage();
 }
@@ -587,8 +589,8 @@ const filteredImages = allMoodBoardImages
           </p>
 
           <p className="text-xs sm:text-sm text-slate mt-2">
-  Demo preview — showing how planners and couples collaborate on visual decisions.
-</p>
+            Preview — showing how planners and couples collaborate on visual decisions.
+          </p>
         </div>
         {selectedImage && (
   <div className="fixed inset-0 z-50 px-4 py-6 overflow-y-auto">

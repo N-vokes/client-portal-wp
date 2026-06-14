@@ -7,6 +7,11 @@ export interface User {
   email: string;
 }
 
+/**
+ * Timeline Event
+ * ⚠️ WEDDING-SCOPED: These events are always accessed within a WeddingContext
+ * They don't have an explicit wedding_id on the client, but are filtered by wedding_id at the DB layer
+ */
 export interface TimelineEvent {
   id: string;
   title: string;
@@ -25,6 +30,11 @@ export type TimelineAction =
   | { type: 'DELETE'; id: string }
   | { type: 'TOGGLE_COMPLETE'; id: string };
 
+/**
+ * Contract
+ * ⚠️ WEDDING-SCOPED: Contracts are always accessed within a WeddingContext
+ * They don't have an explicit wedding_id on the client, but are filtered by wedding_id at the DB layer
+ */
 export interface Contract {
   id: string;
   vendorName: string;
@@ -36,6 +46,13 @@ export interface Contract {
   notes?: string;
 }
 
+export type VendorType = Contract['vendorType'];
+
+/**
+ * Mood Board Image
+ * ⚠️ WEDDING-SCOPED: Images are always accessed within a WeddingContext
+ * They don't have an explicit wedding_id on the client, but are filtered by wedding_id at the DB layer
+ */
 export interface MoodBoardImage {
   id: string;
   url: string;
@@ -46,12 +63,26 @@ export interface MoodBoardImage {
   notes?: string;
 }
 
+/**
+ * Wedding Data - Root aggregate for a single wedding
+ * ⚠️ WEDDING-SCOPED SaaS: This is the primary scoping unit
+ * - Contains all timeline, contract, and mood board data for ONE wedding
+ * - All operations on nested data are implicitly scoped to this wedding.id
+ * - This ensures strict data isolation between different weddings
+ */
 export interface WeddingData {
+  /** Unique identifier for this wedding (used for all data access queries) */
   id: string;
+  /** Couple names for display purposes */
   coupleNames: string;
+  /** Wedding ceremony date */
   weddingDate: string;
+  /** Timeline events for this wedding (always filtered by wedding.id at DB) */
   timeline: TimelineEvent[];
+  /** Contracts for this wedding (always filtered by wedding.id at DB) */
   contracts: Contract[];
+  /** Mood board items for this wedding (always filtered by wedding.id at DB) */
   moodBoard: MoodBoardImage[];
+  /** When this wedding was created in the system */
   createdDate: string;
 }

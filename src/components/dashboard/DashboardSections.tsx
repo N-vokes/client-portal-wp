@@ -70,7 +70,7 @@ export const DashboardProgress: React.FC<DashboardProgressProps> = ({
     <div className="mt-4 text-sm text-slate">
       {upcomingMilestones.length > 0
         ? `Next milestone: ${upcomingMilestones[0].title}`
-        : 'Everything currently looks settled.'}
+        : 'Add your first milestone to begin tracking progress.'}
     </div>
   </div>
 );
@@ -93,7 +93,7 @@ export const DashboardContracts: React.FC<DashboardContractsProps> = ({
         {heading}
       </h2>
 
-      <Link to="/contracts" className="btn-secondary text-sm">
+      <Link to="/dashboard/contracts" className="btn-secondary text-sm">
         View All
       </Link>
     </div>
@@ -104,7 +104,7 @@ export const DashboardContracts: React.FC<DashboardContractsProps> = ({
         title="No contracts uploaded yet"
         message="Keep your wedding agreement library complete by uploading or linking your first contract. Contracts help everyone stay aligned."
         actionLabel="View all contracts"
-        onAction={() => navigate('/contracts')}
+        onAction={() => navigate('/dashboard/contracts')}
         className="py-12"
       />
     ) : (
