@@ -53,6 +53,7 @@ export type PrimaryAction = {
 export type DashboardHeroCopy = {
   heading: string;
   message: string;
+  supportingLabel?: string;
 };
 
 export const getDashboardHeroCopy = (
@@ -60,11 +61,11 @@ export const getDashboardHeroCopy = (
   coupleNames?: string
 ): DashboardHeroCopy => {
   if (userRole === 'planner') {
+    const trimmedCoupleNames = coupleNames?.trim();
     return {
-      heading: coupleNames ? `${coupleNames} — Planner Dashboard` : 'Planner Dashboard',
-      message: coupleNames
-        ? 'Manage milestones, contracts, and inspiration in one elegant workspace.'
-        : 'Manage milestones, contracts, and inspiration in one elegant workspace.',
+      heading: trimmedCoupleNames || 'Wedding Workspace',
+      message: 'Manage milestones, contracts, and inspiration in one elegant workspace.',
+      supportingLabel: trimmedCoupleNames ? 'Wedding Workspace' : undefined,
     };
   }
 

@@ -2,268 +2,268 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import heroImage from '../assets/images/hero/hero.jpg';
 
-const featureItems = [
+const features = [
   {
-    icon: '📅',
-    title: 'Timeline Planning',
-    description: 'Coordinate every milestone with a shared timeline that keeps every detail on schedule.',
+    number: '01',
+    title: 'A clear sense of what comes next',
+    description: 'Bring important dates, decisions, and milestones into one shared timeline.',
   },
   {
-    icon: '🤝',
-    title: 'Vendor Management',
-    description: 'Track vendors, contracts, and approvals in one calm, organized workspace.',
+    number: '02',
+    title: 'Vendors and agreements, together',
+    description: 'Keep vendor details and contracts organized and easy to return to.',
   },
   {
-    icon: '🧾',
-    title: 'Contracts Vault',
-    description: 'Keep every agreement secure, accessible, and simple to review as plans evolve.',
+    number: '03',
+    title: 'A private place for every couple',
+    description: 'Give clients a dedicated wedding workspace to follow plans and take part in decisions.',
   },
   {
-    icon: '🎨',
-    title: 'Mood Board',
-    description: 'Collect imagery, colors, and ideas in one elegant shared vision space.',
-  },
-  {
-    icon: '💡',
-    title: 'Planner Intelligence',
-    description: 'See the next right action so you stay focused on what matters most.',
+    number: '04',
+    title: 'One shared creative vision',
+    description: 'Gather inspiration and keep the look and feeling of the celebration in view.',
   },
 ];
 
-export const LandingPage: React.FC = () => {
-  return (
-    <div className="min-h-screen bg-cream text-charcoal">
-      <header className="border-b border-gold/20 bg-white/80 backdrop-blur-sm sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <span className="text-3xl">💍</span>
-            <div>
-              <p className="text-base font-semibold tracking-[0.22em] uppercase text-slate">Ever After</p>
-              <p className="text-xs text-slate/80">Wedding Portal</p>
-            </div>
+const faqs = [
+  {
+    question: 'What is The Ever After?',
+    answer: 'A wedding-planning platform for planners and couples to organize timelines, vendors, contracts, and inspiration.',
+  },
+  {
+    question: 'Is it for planners or couples?',
+    answer: 'Both. Planners can manage multiple weddings, while each couple can take part in their own private wedding workspace.',
+  },
+  {
+    question: 'Can we plan together?',
+    answer: 'Yes. Share timelines, vendor details, and wedding inspiration with the people involved in your celebration.',
+  },
+  {
+    question: 'Do I need technical experience?',
+    answer: 'No. The portal is designed to make wedding details approachable and simple to keep up with.',
+  },
+  {
+    question: 'Is wedding information private?',
+    answer: 'Wedding workspaces are built for private access by the people involved in that celebration.',
+  },
+];
+
+const FocusMark: React.FC = () => (
+  <span aria-hidden="true" className="mt-2 block h-px w-10 bg-[#B18B3B]" />
+);
+
+export const LandingPage: React.FC = () => (
+  <div className="min-h-screen bg-[#FAF8F3] text-[#282D29]">
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-[#123C30] text-white shadow-sm">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
+        <Link to="/" aria-label="The Ever After home" className="flex items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5C77B]">
+          <svg aria-hidden="true" viewBox="0 0 32 28" fill="none" className="h-7 w-8 shrink-0 text-[#E5C77B]">
+            <circle cx="12" cy="14" r="8.5" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="20" cy="14" r="8.5" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+          <span>
+            <span className="block font-serif text-xl leading-tight tracking-wide">The Ever After</span>
+            <span className="mt-0.5 block text-[10px] uppercase tracking-[0.24em] text-white/65">Wedding planning, thoughtfully</span>
+          </span>
+        </Link>
+
+        <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-2 sm:gap-5">
+          <a href="#approach" className="hidden rounded-sm px-2 py-2 text-sm text-white/80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5C77B] md:inline-flex">
+            Our approach
+          </a>
+          <a href="#features" className="hidden rounded-sm px-2 py-2 text-sm text-white/80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5C77B] md:inline-flex">
+            The experience
+          </a>
+          <Link to="/auth" className="rounded-full px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5C77B]">
+            Log in
           </Link>
+          <Link to="/auth" className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#E5C77B] px-5 py-2 text-sm font-semibold text-[#19382E] transition hover:bg-[#F0D897] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#123C30]">
+            Get started
+          </Link>
+        </nav>
+      </div>
+    </header>
 
-          <div className="flex flex-wrap items-center gap-3 justify-start sm:justify-end">
-            <Link to="/auth" className="text-sm font-medium text-charcoal hover:text-charcoal/80 transition">
-              Login
-            </Link>
-            <Link
-              to="/auth"
-              className="rounded-full bg-gold text-charcoal px-5 py-2.5 text-sm font-medium shadow-sm shadow-gold/20 hover:bg-gold/90 transition"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main>
-        <section className="relative overflow-hidden">
-          <img
-            src={heroImage}
-            alt="Soft wedding ceremony scene"
-            loading="eager"
-            decoding="async"
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40 saturate-90 blur-sm"
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-cream via-white to-blush opacity-80" />
-          <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-24 md:py-32">
-            <div className="grid gap-16 lg:grid-cols-[1.1fr_0.9fr] items-center">
-              <div className="max-w-2xl">
-                <p className="text-sm uppercase tracking-[0.32em] text-gold mb-4">Wedding planning software</p>
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif leading-tight text-charcoal mb-6">
-                  Plan weddings effortlessly with clarity, beauty, and control
-                </h1>
-                <p className="text-base sm:text-lg text-slate max-w-2xl leading-relaxed mb-8">
-                  A polished platform for planners and couples to manage timelines, vendors, contracts, and inspiration with calm confidence.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Link
-                    to="/auth"
-                    className="inline-flex items-center justify-center rounded-full bg-charcoal px-6 py-3 text-sm font-semibold text-cream shadow-lg shadow-charcoal/10 hover:bg-charcoal/90 transition"
-                  >
-                    Get Started
-                  </Link>
-                  <Link
-                    to="/auth"
-                    className="inline-flex items-center justify-center rounded-full border border-charcoal/10 bg-white px-6 py-3 text-sm font-semibold text-charcoal hover:bg-sand transition"
-                  >
-                    Login
-                  </Link>
-                </div>
-              </div>
-
-              <div className="rounded-[2rem] border border-gold/10 bg-white/90 p-8 shadow-xl shadow-slate-200/70">
-                <div className="space-y-5">
-                  <div className="rounded-[1.75rem] bg-sand/80 p-8">
-                    <p className="text-sm uppercase tracking-[0.24em] text-gold font-semibold mb-3">Trusted workflows</p>
-                    <ul className="space-y-3 text-sm text-charcoal/80">
-                      <li>• Shared planning views for every team member</li>
-                      <li>• Fast vendor approvals and contract tracking</li>
-                      <li>• Clear next actions for every wedding day</li>
-                    </ul>
-                  </div>
-                  <div className="rounded-[1.75rem] bg-white/95 p-8 border border-gold/10 shadow-sm shadow-slate-200/40">
-                    <p className="text-sm uppercase tracking-[0.24em] text-gold font-semibold mb-3">Designed for calm</p>
-                    <p className="text-sm text-charcoal/80 leading-relaxed">
-                      Every screen is crafted to reduce clutter, improve focus, and make planning feel effortless.
-                    </p>
-                  </div>
-                </div>
-              </div>
+    <main>
+      <section aria-labelledby="hero-heading" className="overflow-hidden bg-[#F6F2E9]">
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-12 sm:py-16 md:px-8 md:py-20 lg:grid-cols-[0.95fr_1.05fr] lg:gap-16">
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#75602F]">A calmer way to bring it all together</p>
+            <FocusMark />
+            <h1 id="hero-heading" className="mt-5 font-serif text-4xl leading-[1.12] tracking-[-0.025em] text-[#173A2F] sm:text-5xl lg:text-[3.65rem]">
+              Make room for the moments that matter.
+            </h1>
+            <p className="mt-6 max-w-lg text-base leading-7 text-[#555D56] sm:text-lg">
+              A thoughtful planning home for professionals managing many celebrations—and the couples planning their own.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link to="/auth" className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#15513E] px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#103F31] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B18B3B] focus-visible:ring-offset-2">
+                Begin planning
+              </Link>
+              <Link to="/auth" className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#AEB8AE] bg-transparent px-7 py-3 text-sm font-semibold text-[#234538] transition hover:border-[#15513E] hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B18B3B] focus-visible:ring-offset-2">
+                Log in to your workspace
+              </Link>
             </div>
-          </div>
-        </section>
-
-        <section className="max-w-7xl mx-auto px-4 md:px-8 py-20">
-          <div className="text-center mx-auto max-w-2xl mb-10">
-            <p className="text-sm uppercase tracking-[0.32em] text-gold font-semibold mb-3">Features</p>
-            <h2 className="text-3xl sm:text-4xl font-serif text-charcoal mb-4">The essential tools for beautiful wedding planning</h2>
-            <p className="text-slate text-base leading-relaxed">
-              Core workflows designed to keep every wedding organized, collaborative, and moving forward gracefully.
+            <p className="mt-5 text-xs leading-5 text-[#626B63]">
+              One considered space for timelines, trusted vendors, shared decisions, and inspiration.
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {featureItems.map((item) => (
-              <article key={item.title} className="rounded-3xl border border-gold/10 bg-white p-8 shadow-sm shadow-slate-200/50">
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blush/20 text-2xl">
-                  {item.icon}
+          <figure className="relative min-h-[300px] overflow-hidden rounded-[1.75rem] bg-[#DCE5DC] shadow-[0_24px_60px_rgba(29,55,42,0.14)] sm:min-h-[390px] lg:min-h-[500px]">
+            <img
+              src={heroImage}
+              alt="A softly lit wedding ceremony surrounded by natural details"
+              loading="eager"
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover object-[50%_42%]"
+            />
+            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#122D23]/55 via-transparent to-[#122D23]/5" />
+            <figcaption className="absolute bottom-5 left-5 right-5 flex items-end justify-between gap-4 text-white sm:bottom-7 sm:left-7 sm:right-7">
+              <span className="max-w-xs font-serif text-xl leading-snug sm:text-2xl">A beautiful day, with a little more breathing room.</span>
+              <span className="hidden shrink-0 rounded-full border border-white/50 bg-[#173A2F]/35 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.18em] backdrop-blur-sm sm:inline-flex">Plan with intention</span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="approach" aria-labelledby="approach-heading" className="scroll-mt-24 border-y border-[#E5E0D5] bg-[#FFFEFB]">
+        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 md:grid-cols-[0.7fr_1.3fr] md:items-center md:px-8 md:py-16">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.23em] text-[#75602F]">A shared foundation</p>
+            <h2 id="approach-heading" className="mt-3 font-serif text-3xl leading-tight text-[#173A2F] sm:text-4xl">Every wedding has its own space.</h2>
+          </div>
+          <div className="grid gap-7 sm:grid-cols-2 sm:gap-10">
+            <article className="border-l-2 border-[#C4A65F] pl-5">
+              <h3 className="font-serif text-xl text-[#243D32]">For planners</h3>
+              <p className="mt-2 text-sm leading-6 text-[#59615B]">Keep multiple weddings in view, with a dedicated workspace and a clear picture of what needs attention.</p>
+            </article>
+            <article className="border-l-2 border-[#8EA895] pl-5">
+              <h3 className="font-serif text-xl text-[#243D32]">For couples</h3>
+              <p className="mt-2 text-sm leading-6 text-[#59615B]">Join your own private wedding workspace to follow the plans, share decisions, and enjoy the ideas taking shape.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" aria-labelledby="features-heading" className="scroll-mt-24">
+        <div className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-24">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.23em] text-[#75602F]">The experience</p>
+            <h2 id="features-heading" className="mt-3 font-serif text-3xl leading-tight text-[#173A2F] sm:text-4xl">The details, held with care.</h2>
+            <p className="mt-4 text-base leading-7 text-[#59615B]">
+              The practical tools to keep planning moving, without losing sight of the celebration at the heart of it.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-x-12 sm:grid-cols-2">
+            {features.map((feature) => (
+              <article key={feature.number} className="grid grid-cols-[2.5rem_1fr] gap-4 border-t border-[#D9DED6] py-6 sm:py-7">
+                <span className="pt-1 text-xs font-semibold tracking-[0.12em] text-[#8A713A]">{feature.number}</span>
+                <div>
+                  <h3 className="font-serif text-xl text-[#213E31]">{feature.title}</h3>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-[#59615B]">{feature.description}</p>
                 </div>
-                <h3 className="text-xl font-semibold text-charcoal mb-3">{item.title}</h3>
-                <p className="text-slate leading-relaxed text-sm">{item.description}</p>
               </article>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="bg-sand/70 py-20">
-          <div className="max-w-5xl mx-auto px-4 md:px-8">
-            <div className="text-center mb-14">
-              <p className="text-sm uppercase tracking-[0.32em] text-gold font-semibold mb-3">How it works</p>
-              <h2 className="text-3xl sm:text-4xl font-serif text-charcoal">Three simple steps to a calm wedding workflow</h2>
-            </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="rounded-3xl border border-gold/10 bg-white p-8 text-center shadow-sm shadow-slate-200/50">
-                <div className="text-3xl mb-4">01</div>
-                <h3 className="text-xl font-semibold text-charcoal mb-3">Create your wedding</h3>
-                <p className="text-slate text-sm leading-relaxed">
-                  Add event details, dates, and milestone priorities in one polished setup.
-                </p>
-              </div>
-              <div className="rounded-3xl border border-gold/10 bg-white p-8 text-center shadow-sm shadow-slate-200/50">
-                <div className="text-3xl mb-4">02</div>
-                <h3 className="text-xl font-semibold text-charcoal mb-3">Add vendors & timeline</h3>
-                <p className="text-slate text-sm leading-relaxed">
-                  Invite vendors, share contracts, and align tasks across your planning team.
-                </p>
-              </div>
-              <div className="rounded-3xl border border-gold/10 bg-white p-8 text-center shadow-sm shadow-slate-200/50">
-                <div className="text-3xl mb-4">03</div>
-                <h3 className="text-xl font-semibold text-charcoal mb-3">Plan effortlessly together</h3>
-                <p className="text-slate text-sm leading-relaxed">
-                  Collaborate in one place so everyone stays confident, connected, and ahead of the day.
-                </p>
-              </div>
-            </div>
+      <section aria-labelledby="steps-heading" className="border-y border-[#E6E1D6] bg-[#F1F2EB]">
+        <div className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-20">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.23em] text-[#75602F]">A gentle rhythm</p>
+            <h2 id="steps-heading" className="mt-3 font-serif text-3xl leading-tight text-[#173A2F] sm:text-4xl">From first details to the day itself.</h2>
           </div>
-        </section>
+          <ol className="mt-10 grid gap-8 md:grid-cols-3 md:gap-12">
+            <li className="border-t border-[#C5CFC5] pt-5">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8A713A]">First</span>
+              <h3 className="mt-3 font-serif text-xl text-[#213E31]">Gather the essentials</h3>
+              <p className="mt-2 text-sm leading-6 text-[#59615B]">Bring the wedding details, date, and priorities into one considered place.</p>
+            </li>
+            <li className="border-t border-[#C5CFC5] pt-5">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8A713A]">Then</span>
+              <h3 className="mt-3 font-serif text-xl text-[#213E31]">Shape the plan</h3>
+              <p className="mt-2 text-sm leading-6 text-[#59615B]">Coordinate milestones, vendors, and agreements as the celebration comes together.</p>
+            </li>
+            <li className="border-t border-[#C5CFC5] pt-5">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[#8A713A]">Together</span>
+              <h3 className="mt-3 font-serif text-xl text-[#213E31]">Stay close to the vision</h3>
+              <p className="mt-2 text-sm leading-6 text-[#59615B]">Keep the right people connected and make space for thoughtful decisions.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
 
-        <section className="max-w-7xl mx-auto px-4 md:px-8 py-20">
-          <div className="text-center mx-auto max-w-2xl mb-12">
-            <p className="text-sm uppercase tracking-[0.32em] text-gold font-semibold mb-3">Mood & inspiration</p>
-            <h2 className="text-3xl sm:text-4xl font-serif text-charcoal">A subtle, elegant palette for your wedding vision</h2>
+      <section aria-labelledby="inspiration-heading" className="mx-auto grid max-w-7xl gap-8 px-5 py-16 md:grid-cols-[1fr_0.8fr] md:items-center md:px-8 md:py-24">
+        <div className="relative min-h-[280px] overflow-hidden rounded-[1.5rem] bg-[#DCE5DC] sm:min-h-[360px]">
+          <img
+            src={heroImage}
+            alt="Wedding inspiration in soft ivory and garden green"
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 h-full w-full object-cover object-[50%_45%]"
+          />
+          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#122D23]/45 to-transparent" />
+          <p className="absolute bottom-5 left-6 font-serif text-2xl text-white">A vision, shared.</p>
+        </div>
+        <div className="py-2 md:pl-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.23em] text-[#75602F]">Mood & inspiration</p>
+          <h2 id="inspiration-heading" className="mt-3 font-serif text-3xl leading-tight text-[#173A2F] sm:text-4xl">Let the feeling lead.</h2>
+          <p className="mt-4 max-w-lg text-base leading-7 text-[#59615B]">
+            Gather the colors, flowers, and thoughtful details that make the celebration feel unmistakably yours.
+          </p>
+          <div className="mt-7 flex max-w-xs gap-3" aria-label="A palette of garden green, ivory, and muted gold">
+            <span className="h-9 flex-1 rounded-full bg-[#456A52]" />
+            <span className="h-9 flex-1 rounded-full bg-[#AFC1A8]" />
+            <span className="h-9 flex-1 rounded-full border border-[#E3DED3] bg-[#FAF8F3]" />
+            <span className="h-9 flex-1 rounded-full bg-[#C8AE71]" />
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="overflow-hidden rounded-[2rem] border border-gold/10 bg-white shadow-sm shadow-slate-200/40">
-                <img
-                  src={heroImage}
-                  alt="Wedding inspiration image"
-                  loading="lazy"
-                  decoding="async"
-                  className="h-44 w-full object-cover"
-                />
-              </div>
-            ))}
-          </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="max-w-7xl mx-auto px-4 md:px-8 py-20">
-          <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] items-start">
-            <div>
-              <p className="text-sm uppercase tracking-[0.32em] text-gold font-semibold mb-3">Frequently asked questions</p>
-              <h2 className="text-3xl sm:text-4xl font-serif text-charcoal mb-6">Simple answers that build trust</h2>
-              <div className="space-y-4">
-                <div className="rounded-3xl border border-gold/10 bg-white p-6 shadow-sm shadow-slate-200/50">
-                  <p className="font-semibold text-charcoal mb-2">What is Ever After Wedding Portal?</p>
-                  <p className="text-slate text-sm leading-relaxed">
-                    A wedding planning platform for planners and couples to manage tasks, vendors, contracts, and inspiration.
-                  </p>
+      <section aria-labelledby="faq-heading" className="border-t border-[#E6E1D6] bg-[#FFFEFB]">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 md:grid-cols-[1.15fr_0.85fr] md:px-8 md:py-20">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.23em] text-[#75602F]">A few things you may wonder</p>
+            <h2 id="faq-heading" className="mt-3 font-serif text-3xl leading-tight text-[#173A2F] sm:text-4xl">Simple answers, considered.</h2>
+            <dl className="mt-8 divide-y divide-[#E2E3DC] border-y border-[#E2E3DC]">
+              {faqs.map((faq) => (
+                <div key={faq.question} className="py-5">
+                  <dt className="font-serif text-lg text-[#243D32]">{faq.question}</dt>
+                  <dd className="mt-2 max-w-2xl text-sm leading-6 text-[#59615B]">{faq.answer}</dd>
                 </div>
-                <div className="rounded-3xl border border-gold/10 bg-white p-6 shadow-sm shadow-slate-200/50">
-                  <p className="font-semibold text-charcoal mb-2">Is this for planners or couples?</p>
-                  <p className="text-slate text-sm leading-relaxed">
-                    Designed for both. Planners gain workflow control and couples stay aligned with the details.
-                  </p>
-                </div>
-                <div className="rounded-3xl border border-gold/10 bg-white p-6 shadow-sm shadow-slate-200/50">
-                  <p className="font-semibold text-charcoal mb-2">Can I collaborate with my partner?</p>
-                  <p className="text-slate text-sm leading-relaxed">
-                    Yes. Share timelines, vendor notes, and mood board inspiration with your planning partner.
-                  </p>
-                </div>
-                <div className="rounded-3xl border border-gold/10 bg-white p-6 shadow-sm shadow-slate-200/50">
-                  <p className="font-semibold text-charcoal mb-2">Do I need technical experience?</p>
-                  <p className="text-slate text-sm leading-relaxed">
-                    No. The portal is built to be intuitive and approachable for every planning team.
-                  </p>
-                </div>
-                <div className="rounded-3xl border border-gold/10 bg-white p-6 shadow-sm shadow-slate-200/50">
-                  <p className="font-semibold text-charcoal mb-2">Is my data secure?</p>
-                  <p className="text-slate text-sm leading-relaxed">
-                    Yes. We secure wedding details with modern protections and private access controls.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-[2rem] border border-gold/10 bg-white p-10 shadow-xl shadow-slate-200/60">
-              <p className="text-sm uppercase tracking-[0.32em] text-gold font-semibold mb-4">Contact</p>
-              <h3 className="text-2xl font-semibold text-charcoal mb-5">Need support or a demo?</h3>
-              <p className="text-slate text-sm leading-relaxed mb-8">
-                Send your inquiry and we�ll respond within 24�48 hours.
-              </p>
-              <div className="rounded-3xl border border-charcoal/10 bg-cream p-5">
-                <p className="text-xs uppercase tracking-[0.32em] text-slate mb-2">Email</p>
-                <p className="text-base font-medium text-charcoal">hello@everafterportal.com</p>
-              </div>
-            </div>
+              ))}
+            </dl>
           </div>
-        </section>
+          <aside className="self-start rounded-[1.5rem] bg-[#173F32] p-7 text-white sm:p-9">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#E5C77B]">Here to help</p>
+            <h3 className="mt-3 font-serif text-2xl">Need support or a demo?</h3>
+            <p className="mt-3 text-sm leading-6 text-white/80">Send your inquiry and we’ll respond within 24–48 hours.</p>
+            <a href="mailto:hello@everafterportal.com" className="mt-7 inline-flex min-h-11 items-center rounded-full border border-white/40 px-5 py-2 text-sm font-medium text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5C77B]">
+              hello@everafterportal.com
+            </a>
+          </aside>
+        </div>
+      </section>
 
-        <section className="max-w-7xl mx-auto px-4 md:px-8 py-20">
-          <div className="rounded-[2rem] border border-gold/10 bg-white p-10 text-center shadow-xl shadow-slate-200/60">
-            <h2 className="text-3xl sm:text-4xl font-serif text-charcoal mb-4">Start planning your perfect wedding today</h2>
-            <p className="text-slate text-base leading-relaxed max-w-2xl mx-auto mb-8">
-              Discover the calm, elegant wedding planning system trusted by planners and couples alike.
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link
-                to="/auth"
-                className="inline-flex items-center justify-center rounded-full bg-charcoal px-6 py-3 text-sm font-semibold text-cream shadow-lg shadow-charcoal/10 hover:bg-charcoal/90 transition"
-              >
-                Get Started
-              </Link>
-              <Link
-                to="/auth"
-                className="inline-flex items-center justify-center rounded-full border border-charcoal/10 bg-white px-6 py-3 text-sm font-semibold text-charcoal hover:bg-sand transition"
-              >
-                Login
-              </Link>
-            </div>
+      <section aria-labelledby="closing-heading" className="bg-[#FAF8F3] px-5 py-14 md:px-8 md:py-20">
+        <div className="mx-auto max-w-7xl overflow-hidden rounded-[1.75rem] border border-[#C7AE72]/50 bg-[#123C30] px-6 py-12 text-center sm:px-12 md:py-16">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#E5C77B]">Your next chapter starts here</p>
+          <h2 id="closing-heading" className="mx-auto mt-4 max-w-3xl font-serif text-3xl leading-tight text-white sm:text-4xl md:text-5xl">A little more calm in every wedding plan.</h2>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-white/80 sm:text-base">
+            Bring the plans together, stay connected, and keep the celebration in focus.
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link to="/auth" className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#E5C77B] px-7 py-3 text-sm font-semibold text-[#19382E] transition hover:bg-[#F0D897] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#123C30]">
+              Get started
+            </Link>
+            <Link to="/auth" className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/55 px-7 py-3 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5C77B]">
+              Log in
+            </Link>
           </div>
-        </section>
-      </main>
-    </div>
-  );
-};
+        </div>
+      </section>
+    </main>
+  </div>
+);

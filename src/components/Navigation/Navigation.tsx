@@ -5,9 +5,10 @@ import { useAuth } from '../../hooks/useAuth';
 
 interface NavigationProps {
   mode?: 'planner' | 'couple';
+  plannerScope?: 'global' | 'workspace';
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ mode }) => {
+export const Navigation: React.FC<NavigationProps> = ({ mode, plannerScope = 'workspace' }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { wedding } = useWedding();
@@ -38,15 +39,20 @@ export const Navigation: React.FC<NavigationProps> = ({ mode }) => {
 
   const navItems =
     uiMode === 'planner'
-      ? [
-          { path: '/dashboard', label: 'Planner Dashboard', icon: '🏠' },
-          { path: '/portfolio', label: 'Portfolio', icon: '📁' },
-          { path: `${basePath}`, label: 'Wedding Workspace', icon: '💍' },
-          { path: `${basePath}/timeline`, label: 'Timeline', icon: '📅' },
-          { path: `${basePath}/contracts`, label: 'Contracts', icon: '📄' },
-          { path: `${basePath}/moodboard`, label: 'Mood Board', icon: '✨' },
-          { path: `${basePath}/clients`, label: 'Clients', icon: '👥' },
-        ]
+      ? plannerScope === 'global'
+        ? [
+            { path: '/dashboard', label: 'Planner Dashboard', icon: '🏠' },
+            { path: '/portfolio', label: 'Portfolio', icon: '📁' },
+          ]
+        : [
+            { path: '/dashboard', label: 'Planner Dashboard', icon: '🏠' },
+            { path: '/portfolio', label: 'Portfolio', icon: '📁' },
+            { path: `${basePath}`, label: 'Wedding Workspace', icon: '💍' },
+            { path: `${basePath}/timeline`, label: 'Timeline', icon: '📅' },
+            { path: `${basePath}/contracts`, label: 'Contracts', icon: '📄' },
+            { path: `${basePath}/moodboard`, label: 'Mood Board', icon: '✨' },
+            { path: `${basePath}/clients`, label: 'Clients', icon: '👥' },
+          ]
       : [
           { path: `${basePath}`, label: 'Dashboard', icon: '🏠' },
           { path: `${basePath}/timeline`, label: 'Timeline', icon: '📅' },
@@ -105,11 +111,13 @@ export const Navigation: React.FC<NavigationProps> = ({ mode }) => {
         {/* User Info */}
         <div className="flex flex-col items-start gap-2 text-left md:items-end md:text-right text-sm self-start md:self-auto">
           <div>
-            <p className={`font-medium break-words ${uiMode === 'planner' ? 'text-white' : 'text-charcoal'}`}>
-              {uiMode === 'planner'
-                ? wedding?.coupleNames ?? 'Portfolio'
-                : wedding?.coupleNames ?? 'Your Wedding'}
-            </p>
+            {(uiMode !== 'planner' || plannerScope !== 'global') && (
+              <p className={`font-medium break-words ${uiMode === 'planner' ? 'text-white' : 'text-charcoal'}`}>
+                {uiMode === 'planner'
+                  ? wedding?.coupleNames ?? 'Portfolio'
+                  : wedding?.coupleNames ?? 'Your Wedding'}
+              </p>
+            )}
             <p className={`text-xs ${uiMode === 'planner' ? 'text-white/75' : 'text-slate'}`}>{uiMode === 'planner' ? 'Planner' : 'Couple'}</p>
           </div>
           <button

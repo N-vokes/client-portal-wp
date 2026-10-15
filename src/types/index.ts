@@ -87,6 +87,8 @@ export interface WeddingData {
   coupleNames: string;
   /** Wedding ceremony date */
   weddingDate: string;
+  /** Supabase Storage path for this wedding's cover photo, if one is set */
+  coverImagePath: string | null;
   /** Timeline events for this wedding (always filtered by wedding.id at DB) */
   timeline: TimelineEvent[];
   /** Contracts for this wedding (always filtered by wedding.id at DB) */

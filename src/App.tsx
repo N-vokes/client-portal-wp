@@ -39,6 +39,17 @@ function PlannerLayout() {
   );
 }
 
+function GlobalPlannerLayout() {
+  return (
+    <div className="min-h-screen bg-cream">
+      <Navigation mode="planner" plannerScope="global" />
+      <Suspense fallback={<PageLoader />}>
+        <Outlet />
+      </Suspense>
+    </div>
+  );
+}
+
 function CoupleLayout() {
   return (
     <div className="min-h-screen bg-cream">
@@ -173,8 +184,17 @@ function AppContent() {
           {/* ONBOARDING */}
           {!activeWeddingId ? (
             <>
-              <Route path="/portfolio" element={<OnboardingPage />} />
-              <Route path="/onboarding/setup" element={<OnboardingSetup />} />
+              {userRole === 'planner' ? (
+                <Route element={<PlannerLayout />}>
+                  <Route path="/portfolio" element={<OnboardingPage />} />
+                  <Route path="/onboarding/setup" element={<OnboardingSetup />} />
+                </Route>
+              ) : (
+                <>
+                  <Route path="/portfolio" element={<OnboardingPage />} />
+                  <Route path="/onboarding/setup" element={<OnboardingSetup />} />
+                </>
+              )}
               <Route path="*" element={<Navigate to="/portfolio" replace />} />
             </>
           ) : (
@@ -182,8 +202,10 @@ function AppContent() {
               {/* PLANNER */}
               {userRole === 'planner' ? (
                 <>
-                  <Route path="/portfolio" element={<MultiWeddingDashboard />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route element={<GlobalPlannerLayout />}>
+                    <Route path="/portfolio" element={<MultiWeddingDashboard />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                  </Route>
 
                   <Route path="/dashboard/:weddingId/*" element={<PlannerRoute />}>
                     <Route index element={<Dashboard />} />

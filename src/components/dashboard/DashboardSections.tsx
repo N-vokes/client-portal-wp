@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useWedding } from '../../contexts/useWedding';
 import { EmptyState } from '../../components/StateCards';
-
-import heroImage from '../../assets/images/hero/hero.jpg';
+import { db } from '../../lib/supabase';
 import type {
   DashboardHeroCopy,
   UpcomingMilestone,
@@ -18,29 +17,109 @@ type DashboardHeroProps = {
 
 export const DashboardHero: React.FC<DashboardHeroProps> = ({
   heroCopy,
-}) => (
-  <div className="relative border-b border-gold/20 overflow-hidden">
-    <img
-      src={heroImage}
-      alt="Wedding hero"
-      className="absolute inset-0 w-full h-full object-cover object-[50%_35%]"
-    />
+}) => {
+  const { wedding } = useWedding();
+  const [resolvedCover, setResolvedCover] = React.useState<{
+    weddingId: string;
+    storagePath: string;
+    url: string;
+  } | null>(null);
+  const weddingId = wedding?.id;
+  const storagePath = wedding?.coverImagePath;
 
-    <div className="absolute inset-0 bg-cream/40" />
+  React.useEffect(() => {
+    let isCurrent = true;
+    setResolvedCover(null);
 
-    <div className="relative z-10 bg-gradient-to-br from-sand/40 to-cream/40">
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
-        <h1 className="text-3xl md:text-5xl font-serif text-charcoal mb-4">
-          {heroCopy.heading}
-        </h1>
+    if (!weddingId || !storagePath) {
+      return () => {
+        isCurrent = false;
+      };
+    }
 
-        <p className="text-slate max-w-2xl">
-          {heroCopy.message}
-        </p>
+    const resolveCover = async () => {
+      try {
+        const url = await db.getWeddingCoverPhotoSignedUrl(weddingId, storagePath);
+        if (isCurrent) {
+          setResolvedCover({ weddingId, storagePath, url });
+        }
+      } catch (error) {
+        if (isCurrent) {
+          console.error(`Unable to load cover photo for wedding ${weddingId}:`, error);
+        }
+      }
+    };
+
+    void resolveCover();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [weddingId, storagePath]);
+
+  const coverUrl =
+    resolvedCover &&
+    resolvedCover.weddingId === weddingId &&
+    resolvedCover.storagePath === storagePath
+      ? resolvedCover.url
+      : null;
+
+  return (
+    <div className="relative min-h-[280px] overflow-hidden border-b border-[#D4A843]/35 bg-[#EAF1EB] md:min-h-[360px]">
+      {coverUrl ? (
+        <img
+          src={coverUrl}
+          alt={wedding?.coupleNames ? `Cover photograph for ${wedding.coupleNames}` : 'Wedding cover photograph'}
+          className="absolute inset-0 h-full w-full object-cover object-[50%_35%]"
+          onError={() => {
+            setResolvedCover((current) =>
+              current &&
+              current.weddingId === weddingId &&
+              current.storagePath === storagePath
+                ? null
+                : current
+            );
+          }}
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#FFFFFF_0%,_#EAF1EB_55%,_#DCE9DF_100%)]"
+        >
+          <div className="absolute -right-20 -top-32 h-80 w-80 rounded-full border border-[#D4A843]/30" />
+          <div className="absolute -right-8 -top-20 h-64 w-64 rounded-full border border-[#075B46]/10" />
+        </div>
+      )}
+
+      <div className={`absolute inset-0 ${coverUrl ? 'bg-[#FAF8F6]/45' : 'bg-[#FAF8F6]/10'}`} />
+
+      <div className="relative z-10 bg-gradient-to-br from-[#F5EFE8]/45 to-[#FAF8F6]/40">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
+          <div className="mb-4">
+            <h1 className="flex items-center gap-3 font-serif text-3xl text-[#172D26] md:text-5xl">
+              {heroCopy.supportingLabel && (
+                <svg aria-hidden="true" viewBox="0 0 36 28" fill="none" className="h-7 w-9 shrink-0 text-[#A98635] md:h-9 md:w-11">
+                  <circle cx="13" cy="14" r="8.5" stroke="currentColor" strokeWidth="1.6" />
+                  <circle cx="23" cy="14" r="8.5" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              )}
+              <span>{heroCopy.heading}</span>
+            </h1>
+            {heroCopy.supportingLabel && (
+              <p className="mt-1 pl-12 text-sm font-medium tracking-wide text-[#73796F] md:mt-0.5 md:pl-14 md:text-base">
+                {heroCopy.supportingLabel}
+              </p>
+            )}
+          </div>
+
+          <p className="text-[#514B45] max-w-2xl">
+            {heroCopy.message}
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 type DashboardProgressProps = {
   upcomingMilestones: UpcomingMilestone[];

@@ -198,6 +198,7 @@ const {
         id: weddingData.id as string,
         coupleNames: (weddingData.couple_names || weddingData.coupleNames || '') as string,
         weddingDate,
+        coverImagePath: typeof weddingData.cover_image_path === 'string' ? weddingData.cover_image_path : null,
         timeline: [],
         contracts: [],
         moodBoard: [],

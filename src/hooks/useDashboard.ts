@@ -73,7 +73,7 @@ export const useDashboard = (
 
   const heroCopy = getDashboardHeroCopy(
     userRole,
-    isWeddingLoaded ? wedding.coupleNames : undefined
+    wedding?.coupleNames
   );
 
   const upcomingMilestones = mapUpcomingMilestones(safeTimeline);
