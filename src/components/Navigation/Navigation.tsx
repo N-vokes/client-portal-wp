@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useWedding } from '../../contexts/useWedding';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -9,9 +9,25 @@ interface NavigationProps {
 
 export const Navigation: React.FC<NavigationProps> = ({ mode }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { wedding } = useWedding();
-  const { userRole } = useAuth();
+  const { userRole, logout } = useAuth();
   const uiMode = mode ?? (userRole ?? 'couple');
+  const [signOutError, setSignOutError] = React.useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    setSignOutError(null);
+    try {
+      await logout();
+      navigate('/auth', { replace: true });
+    } catch (error) {
+      setSignOutError(error instanceof Error ? error.message : 'Unable to sign out. Please try again.');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   const basePath =
     uiMode === 'planner'
@@ -96,6 +112,19 @@ export const Navigation: React.FC<NavigationProps> = ({ mode }) => {
             </p>
             <p className={`text-xs ${uiMode === 'planner' ? 'text-white/75' : 'text-slate'}`}>{uiMode === 'planner' ? 'Planner' : 'Couple'}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            disabled={isSigningOut}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              uiMode === 'planner'
+                ? 'border border-white/30 text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5BC59] focus-visible:ring-offset-2 focus-visible:ring-offset-[#075B46]'
+                : 'border border-[#D4A843]/50 text-[#075B46] hover:bg-sand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A843] focus-visible:ring-offset-2'
+            }`}
+          >
+            {isSigningOut ? 'Signing out…' : 'Sign out'}
+          </button>
+          {signOutError && <p role="alert" className="max-w-xs text-left text-xs text-red-700 md:text-right">{signOutError}</p>}
         </div>
       </div>
     </nav>

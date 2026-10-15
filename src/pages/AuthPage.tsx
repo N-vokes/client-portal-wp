@@ -72,7 +72,17 @@ export const AuthPage: React.FC = () => {
         return;
       }
 
-      navigate('/onboarding/setup', { replace: true });
+      const role = response.data.user?.user_metadata?.role;
+      if (role === 'planner') {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      if (role === 'couple') {
+        navigate('/couple/dashboard', { replace: true });
+        return;
+      }
+
+      setError('You signed in, but your account role could not be confirmed. Please contact your planner or administrator.');
     } catch (authError: any) {
       setError(authError?.message || 'Unable to sign in. Please try again.');
     } finally {

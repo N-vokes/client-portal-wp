@@ -2,15 +2,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { getSession, supabase } from '../lib/supabase';
 import type { UserRole } from '../types/index';
 
-/**
- * Single source of truth for authentication + role derivation.
- * This hook reads from Supabase session once and prevents all duplication.
- * 
- * - Supabase.auth is the ONLY source of user + role data
- * - resolveRole() is called ONCE and memoized
- * - No state duplication in App.tsx, WeddingContext, or other contexts
- */
-
 interface AuthState {
   user: any | null;
   userRole: UserRole | null;
@@ -36,103 +27,73 @@ export const useAuth = () => {
     hydrated: false,
     error: null,
   });
-  const timeoutRef = useRef<number | null>(null);
+  const authEventVersionRef = useRef(0);
 
-  const clearLoadingTimeout = () => {
-    if (timeoutRef.current !== null) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  };
-
-  // Memoized initialization to prevent infinite loops
-  const initializeAuth = useCallback(async () => {
-    try {
-      const { data, error } = await getSession();
-      if (error) {
-        setAuthState((prev) => ({ ...prev, error, loading: false, hydrated: true }));
-        return;
-      }
-
-      if (data.session?.user) {
-        const user = data.session.user;
-        const userRole = resolveRole(user);
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        authEventVersionRef.current += 1;
+        const user = session?.user ?? null;
         setAuthState({
           user,
-          userRole,
-          loading: false,
-          hydrated: true,
-          error: null,
-        });
-      } else {
-        setAuthState({
-          user: null,
-          userRole: null,
+          userRole: resolveRole(user),
           loading: false,
           hydrated: true,
           error: null,
         });
       }
-    } catch (err) {
-      setAuthState((prev) => ({
-        ...prev,
-        error: err instanceof Error ? err : new Error(String(err)),
-        loading: false,
-        hydrated: true,
-      }));
-    } finally {
-      clearLoadingTimeout();
-      setAuthState((prev) => ({ ...prev, loading: false, hydrated: true }));
-    }
-  }, []);
+    );
 
-  // Initialize on mount and listen for auth changes
-  useEffect(() => {
-    initializeAuth();
+    const initialEventVersion = authEventVersionRef.current;
+    let isMounted = true;
 
-    timeoutRef.current = window.setTimeout(() => {
-      setAuthState((prev) => ({ ...prev, loading: false, hydrated: true }));
-    }, 5000);
+    const loadInitialSession = async () => {
+      try {
+        const { data, error } = await getSession();
+        if (!isMounted || authEventVersionRef.current !== initialEventVersion) return;
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
-          const user = session.user;
-          const userRole = resolveRole(user);
-          setAuthState({
-            user,
-            userRole,
-            loading: false,
-            hydrated: true,
-            error: null,
-          });
-        } else {
+        if (error) {
           setAuthState({
             user: null,
             userRole: null,
             loading: false,
             hydrated: true,
-            error: null,
+            error,
           });
+          return;
         }
+
+        const user = data.session?.user ?? null;
+        setAuthState({
+          user,
+          userRole: resolveRole(user),
+          loading: false,
+          hydrated: true,
+          error: null,
+        });
+      } catch (err) {
+        if (!isMounted || authEventVersionRef.current !== initialEventVersion) return;
+        setAuthState({
+          user: null,
+          userRole: null,
+          loading: false,
+          hydrated: true,
+          error: err instanceof Error ? err : new Error(String(err)),
+        });
       }
-    );
+    };
+
+    void loadInitialSession();
 
     return () => {
-      clearLoadingTimeout();
+      isMounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [initializeAuth]);
+  }, []);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
-    setAuthState({
-      user: null,
-      userRole: null,
-      loading: false,
-      hydrated: true,
-      error: null,
-    });
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   }, []);
 
   return {

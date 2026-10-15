@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Outlet, BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Outlet, BrowserRouter, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import './index.css';
 
 import { Navigation } from './components/Navigation/Navigation';
@@ -92,11 +92,59 @@ function CoupleRoute() {
 /* ---------------- APP CONTENT ---------------- */
 
 function AppContent() {
-  const { isAuthenticated, loading: authLoading, userRole } = useAuth();
+  const { isAuthenticated, loading: authLoading, userRole, logout, error: authError } = useAuth();
   const { activeWeddingId, loading: weddingLoading } = useWedding();
+  const navigate = useNavigate();
+  const [signOutError, setSignOutError] = React.useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    setSignOutError(null);
+    try {
+      await logout();
+      navigate('/auth', { replace: true });
+    } catch (error) {
+      setSignOutError(error instanceof Error ? error.message : 'Unable to sign out. Please try again.');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   if (authLoading || weddingLoading) {
     return <PageLoader />;
+  }
+
+  if (isAuthenticated && !userRole) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-cream px-4 py-12">
+        <section className="w-full max-w-lg rounded-2xl border border-[#E7D59F] bg-white p-6 text-center shadow-sm md:p-8">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#075B46]">Account access</p>
+          <h1 className="text-2xl font-serif text-[#172D26]">We couldn’t confirm your account role</h1>
+          <p className="mt-3 text-sm leading-relaxed text-[#73796F]">
+            Your session is active, but the account does not have a recognized planner or couple role. Please contact your administrator.
+          </p>
+          {authError && (
+            <p role="alert" className="mt-4 rounded-lg border border-[#E9C7C5] bg-[#FFF8F7] px-3 py-2 text-sm text-[#783B3A]">
+              {authError.message}
+            </p>
+          )}
+          {signOutError && (
+            <p role="alert" className="mt-4 rounded-lg border border-[#E9C7C5] bg-[#FFF8F7] px-3 py-2 text-sm text-[#783B3A]">
+              {signOutError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            disabled={isSigningOut}
+            className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full bg-[#075B46] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#064C3C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4A843] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSigningOut ? 'Signing out…' : 'Sign out'}
+          </button>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -110,7 +158,7 @@ function AppContent() {
           isAuthenticated
             ? userRole === 'planner'
               ? <Navigate to="/dashboard" replace />
-              : <Navigate to="/portfolio" replace />
+              : <Navigate to="/couple/dashboard" replace />
             : <AuthPage />
         }
       />
