@@ -1,14 +1,15 @@
 import type { TimelineEvent } from '../types';
+import type { TimelineCategory } from './timeline';
 
 export type TimelineSuggestion = {
   id: string;
   title: string;
   description: string;
-  category: TimelineEvent['category'];
+  category: TimelineCategory;
   estimatedDaysBeforeWedding: number;
 };
 
-const suggestionGroups: Record<TimelineEvent['category'], Omit<TimelineSuggestion, 'id'>[]> = {
+const suggestionGroups: Record<TimelineCategory, Omit<TimelineSuggestion, 'id'>[]> = {
   planning: [
     {
       title: 'Venue booking',
@@ -92,7 +93,7 @@ const suggestionGroups: Record<TimelineEvent['category'], Omit<TimelineSuggestio
 };
 
 const buildSuggestionId = (
-  category: TimelineEvent['category'],
+  category: TimelineCategory,
   title: string,
   daysBefore: number
 ) => `${category}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${daysBefore}`;
@@ -110,12 +111,11 @@ export function generateTimelineSuggestions(
     return [];
   }
 
-  const existingCategories = new Set(
-    existingEvents.map((event) => event.category)
+  const existingTitles = new Set(
+    existingEvents.map((event) => event.title.trim().toLowerCase())
   );
 
-  return (Object.keys(suggestionGroups) as TimelineEvent['category'][])
-    .filter((category) => !existingCategories.has(category))
+  return (Object.keys(suggestionGroups) as TimelineCategory[])
     .flatMap((category) =>
       suggestionGroups[category].map((suggestion) => ({
         id: buildSuggestionId(
@@ -125,7 +125,8 @@ export function generateTimelineSuggestions(
         ),
         ...suggestion,
       }))
-    );
+    )
+    .filter((suggestion) => !existingTitles.has(suggestion.title.toLowerCase()));
 }
 
 export function getDateBeforeWedding(

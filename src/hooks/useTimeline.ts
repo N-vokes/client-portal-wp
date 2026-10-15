@@ -1,27 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { TimelineEvent } from '../types';
 import { calculateProgressPercent } from '../utils/progress';
-import {
-  timelineCategoryFilters,
-  validTimelineCategories,
-  isValidTimelineCategory,
-} from '../utils/timeline';
-
-type CategoryFilter = typeof timelineCategoryFilters[number];
 
 export function useTimeline(timelineEvents: TimelineEvent[] | null) {
-  const [selectedCategory, setSelectedCategory] =
-    useState<CategoryFilter>('all');
-
   const safeEvents = useMemo(() => timelineEvents ?? [], [timelineEvents]);
-
-  const filteredEvents = useMemo(() => {
-    if (selectedCategory === 'all') return safeEvents;
-
-    return safeEvents.filter(
-      (e) => e.category === selectedCategory
-    );
-  }, [safeEvents, selectedCategory]);
 
   const completedCount = useMemo(
     () => safeEvents.filter((e) => e.completed).length,
@@ -39,14 +21,10 @@ export function useTimeline(timelineEvents: TimelineEvent[] | null) {
   );
 
   return {
-    selectedCategory,
-    setSelectedCategory,
-    filteredEvents,
+    filteredEvents: safeEvents,
     safeEvents,
     completedCount,
     upcomingCount,
     progressPercent,
-    isValidCategory: isValidTimelineCategory,
-    validCategories: validTimelineCategories,
   };
 }

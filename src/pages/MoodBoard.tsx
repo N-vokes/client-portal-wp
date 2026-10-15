@@ -1,14 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWedding } from '../contexts/useWedding';
-import { usePlannerActions } from '../domain/plannerActions';
+import { useAuth } from '../hooks/useAuth';
+import { PageLoader } from '../components/PageLoader';
 import { useToast } from '../contexts/useToast';
 import { MoodBoardSkeleton } from '../components/Skeleton';
 import { validators, getErrorMessage } from '../utils/validation';
 import { EmptyState } from '../components/StateCards';
-import type { MoodBoardImage } from '../types';
+import type { MoodBoardCommentRecord, MoodBoardImage } from '../types';
 
 type MoodBoardReply = {
   id: string;
+  userId: string;
   author: string;
   text: string;
   createdAt: string;
@@ -16,10 +18,11 @@ type MoodBoardReply = {
 
 type MoodBoardComment = {
   id: string;
+  userId: string;
   author: string;
   text: string;
   createdAt: string;
-  isDecision?: boolean;
+  isDecision: boolean;
   replies?: MoodBoardReply[];
 };
 
@@ -27,24 +30,64 @@ type MoodBoardImageState = MoodBoardImage & {
   status?: 'love' | 'maybe' | 'pass';
 };
 
-interface MoodBoardProps {
-  userRole: 'planner' | 'couple';
-}
+const getDiscussionErrorMessage = (error: unknown): string => {
+  const fields =
+    error && typeof error === 'object'
+      ? error as Record<string, unknown>
+      : {};
+  const message = typeof fields.message === 'string' ? fields.message.trim() : '';
+  const code = typeof fields.code === 'string' ? fields.code.trim() : '';
+  const details = typeof fields.details === 'string' ? fields.details.trim() : '';
+  const hint = typeof fields.hint === 'string' ? fields.hint.trim() : '';
 
-export const MoodBoard: React.FC<MoodBoardProps> = ({ userRole }) => {
-  const { moodBoardImages, loading } = useWedding();
-  const { executePlannerAction } = usePlannerActions();
+  if (import.meta.env.DEV && (message || code || details || hint)) {
+    console.error('Mood Board discussion request failed:', {
+      message,
+      code,
+      details,
+      hint,
+    });
+  }
+
+  const diagnostic = [
+    message,
+    code && `Code: ${code}`,
+    details && `Details: ${details}`,
+    hint && `Hint: ${hint}`,
+  ].filter(Boolean);
+
+  if (diagnostic.length > 0) return diagnostic.join(' — ');
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === 'string' && error.trim()) return error.trim();
+
+  return 'The discussion request failed. Please try again.';
+};
+
+export const MoodBoard: React.FC = () => {
+  const {
+    moodBoardImages,
+    loading,
+    addMoodBoardImage,
+    updateMoodBoardImage,
+    deleteMoodBoardImage,
+    getMoodBoardImageComments,
+    addMoodBoardComment,
+    addMoodBoardReply,
+    deleteMoodBoardComment,
+    updateMoodBoardCommentDecision,
+  } = useWedding();
   const { addToast } = useToast();
+  const { user, userRole } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [sortMode, setSortMode] = useState<'priority' | 'newest'>('priority');
 const [uploading, setUploading] = useState(false);
+const [savingImageDetails, setSavingImageDetails] = useState(false);
 const [visionDescription, setVisionDescription] = useState('');
 const [lastUploadedVisionNote, setLastUploadedVisionNote] = useState('');
 const [uploadCategory, setUploadCategory] = useState<MoodBoardImageState['category']>('other');
 const [lastUploadedCategory, setLastUploadedCategory] = useState<MoodBoardImageState['category']>('other');
 const [selectedImage, setSelectedImage] = useState<MoodBoardImageState | null>(null);
-const [mockUploadedImages, setMockUploadedImages] = useState<MoodBoardImageState[]>([]);
 const [isEditingSelectedImage, setIsEditingSelectedImage] = useState(false);
 const [editedImageTitle, setEditedImageTitle] = useState('');
 const [editedImageNote, setEditedImageNote] = useState('');
@@ -52,6 +95,10 @@ const [editedImageCategory, setEditedImageCategory] = useState<MoodBoardImageSta
 const [editedImageStatus, setEditedImageStatus] = useState<'love' | 'maybe' | 'pass'>('maybe');
 const [editableExistingImages, setEditableExistingImages] = useState<MoodBoardImageState[]>([]);
 const [imageComments, setImageComments] = useState<Record<string, MoodBoardComment[]>>({});
+const [discussionLoading, setDiscussionLoading] = useState(false);
+const [discussionSaving, setDiscussionSaving] = useState(false);
+const [discussionError, setDiscussionError] = useState<string | null>(null);
+const discussionRequestRef = useRef(0);
 const [newComment, setNewComment] = useState('');
 const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 const [collapsedReplies, setCollapsedReplies] = useState<Record<string, boolean>>({});
@@ -68,6 +115,68 @@ const [lastAction, setLastAction] = useState<{
   imageId: string;
   previousStatus: 'love' | 'maybe' | 'pass';
 } | null>(null);
+
+const refreshDiscussion = useCallback(async (imageId: string) => {
+  const requestId = ++discussionRequestRef.current;
+  setDiscussionLoading(true);
+  setDiscussionError(null);
+
+  try {
+    const records = await getMoodBoardImageComments(imageId);
+    if (requestId !== discussionRequestRef.current) return;
+
+    const repliesByParent = new Map<string, MoodBoardCommentRecord[]>();
+    for (const record of records) {
+      if (record.parentCommentId) {
+        const replies = repliesByParent.get(record.parentCommentId) || [];
+        replies.push(record);
+        repliesByParent.set(record.parentCommentId, replies);
+      }
+    }
+
+    const comments = records
+      .filter((record) => !record.parentCommentId)
+      .map((record): MoodBoardComment => ({
+        id: record.id,
+        userId: record.userId,
+        author: record.authorRole === 'planner' ? 'Planner' : 'Couple',
+        text: record.text,
+        createdAt: record.createdAt,
+        isDecision: record.isDecision,
+        replies: (repliesByParent.get(record.id) || []).map((reply) => ({
+          id: reply.id,
+          userId: reply.userId,
+          author: reply.authorRole === 'planner' ? 'Planner' : 'Couple',
+          text: reply.text,
+          createdAt: reply.createdAt,
+        })),
+      }));
+
+    setImageComments((previous) => ({ ...previous, [imageId]: comments }));
+  } catch (error) {
+    if (requestId === discussionRequestRef.current) {
+      setDiscussionError(getDiscussionErrorMessage(error));
+    }
+    throw error;
+  } finally {
+    if (requestId === discussionRequestRef.current) {
+      setDiscussionLoading(false);
+    }
+  }
+}, [getMoodBoardImageComments]);
+
+useEffect(() => {
+  if (!selectedImage) return;
+
+  void refreshDiscussion(selectedImage.id).catch(() => {
+    // The load error is displayed in the discussion panel.
+  });
+
+  return () => {
+    discussionRequestRef.current += 1;
+  };
+}, [selectedImage?.id, refreshDiscussion]);
+
 useEffect(() => {
   setEditableExistingImages(moodBoardImages);
 }, [moodBoardImages]);
@@ -168,15 +277,9 @@ useEffect(() => {
 
   const handleDelete = async (id: string) => {
   if (confirm('Are you sure you want to delete this image?')) {
-    const isMockImage = id.startsWith('mock-');
-
     try {
-      if (isMockImage) {
-        setMockUploadedImages((prev) => prev.filter((img) => img.id !== id));
-      } else {
-        setEditableExistingImages((prev) => prev.filter((img) => img.id !== id));
-        await executePlannerAction({ type: 'DELETE_MOODBOARD_IMAGE', id });
-      }
+      await deleteMoodBoardImage(id);
+      setEditableExistingImages((prev) => prev.filter((img) => img.id !== id));
       if (selectedImage?.id === id) {
   handleCloseSelectedImage();
 }
@@ -187,7 +290,7 @@ useEffect(() => {
     }
   }
 };
-const handleSaveSelectedImage = () => {
+const handleSaveSelectedImage = async () => {
   if (!selectedImage) return;
 
   const updatedImage = {
@@ -198,35 +301,43 @@ const handleSaveSelectedImage = () => {
   status: editedImageStatus,
 };
 
-  const isMockImage = selectedImage.id.startsWith('mock-');
-
-  if (isMockImage) {
-    setMockUploadedImages((prev) =>
+  try {
+    setSavingImageDetails(true);
+    await updateMoodBoardImage(selectedImage.id, {
+      title: updatedImage.title,
+      notes: updatedImage.notes,
+      category: updatedImage.category,
+      status: updatedImage.status,
+    });
+    setEditableExistingImages((prev) =>
       prev.map((img) => (img.id === selectedImage.id ? updatedImage : img))
     );
-  } else {
-  setEditableExistingImages((prev) =>
-    prev.map((img) => (img.id === selectedImage.id ? updatedImage : img))
-  );
-}
-
-  setSelectedImage(updatedImage);
-  setIsEditingSelectedImage(false);
+    setSelectedImage(updatedImage);
+    setIsEditingSelectedImage(false);
+    addToast('Image details saved successfully', 'success');
+  } catch (error) {
+    addToast(getErrorMessage(error), 'error');
+  } finally {
+    setSavingImageDetails(false);
+  }
 };
 
-const handleUpdateImageStatus = (
+const handleUpdateImageStatus = async (
   imageId: string,
   nextStatus: 'love' | 'maybe' | 'pass'
-) => {
+): Promise<boolean> => {
+  try {
+    await updateMoodBoardImage(imageId, { status: nextStatus });
+  } catch (error) {
+    addToast(getErrorMessage(error), 'error');
+    return false;
+  }
+
   setLastAction(null);
   const updateImage = (img: MoodBoardImageState) =>
     img.id === imageId ? { ...img, status: nextStatus } : img;
 
-  if (imageId.startsWith('mock-')) {
-    setMockUploadedImages((prev) => prev.map(updateImage));
-  } else {
-    setEditableExistingImages((prev) => prev.map(updateImage));
-  }
+  setEditableExistingImages((prev) => prev.map(updateImage));
 
   if (selectedImage?.id === imageId) {
     setSelectedImage((prev) =>
@@ -234,6 +345,7 @@ const handleUpdateImageStatus = (
     );
     setEditedImageStatus(nextStatus);
   }
+  return true;
 };
 
 const openImageWithTransition = (nextImage: MoodBoardImageState) => {
@@ -255,7 +367,7 @@ const openImageWithTransition = (nextImage: MoodBoardImageState) => {
   }, 140);
 };
 
-const handleResolveAndOpenNext = (nextStatus: 'love' | 'pass') => {
+const handleResolveAndOpenNext = async (nextStatus: 'love' | 'pass') => {
   if (!selectedImage) return;
 
   const currentImageId = selectedImage.id;
@@ -263,7 +375,7 @@ const handleResolveAndOpenNext = (nextStatus: 'love' | 'pass') => {
 
   const previousStatus = selectedImage.status || 'maybe';
 
-handleUpdateImageStatus(currentImageId, nextStatus);
+if (!(await handleUpdateImageStatus(currentImageId, nextStatus))) return;
 setDecisionFlash(nextStatus);
 setDecisionLabel(nextStatus);
 window.setTimeout(() => {
@@ -317,57 +429,65 @@ setNewComment('');
   setSelectedImage(null);
 };
 
-const handleAddComment = () => {
+const handleAddComment = async () => {
   if (!selectedImage || !newComment.trim()) return;
+  const imageId = selectedImage.id;
+  setDiscussionSaving(true);
+  setDiscussionError(null);
 
-  const comment = {
-  id: `comment-${Date.now()}`,
-  author: userRole === 'planner' ? 'Planner' : 'Couple',
-  text: newComment.trim(),
-  createdAt: new Date().toISOString(),
-  isDecision: false,
-  replies: [],
+  try {
+    await addMoodBoardComment(imageId, newComment.trim());
+    await refreshDiscussion(imageId);
+    setNewComment('');
+  } catch (error) {
+    setDiscussionError(getDiscussionErrorMessage(error));
+  } finally {
+    setDiscussionSaving(false);
+  }
 };
 
-  setImageComments((prev) => ({
-    ...prev,
-    [selectedImage.id]: [...(prev[selectedImage.id] || []), comment],
-  }));
-
-  setNewComment('');
-};
-
-const handleDeleteComment = (commentId: string) => {
+const handleDeleteComment = async (commentId: string) => {
   if (!selectedImage) return;
 
   const confirmed = window.confirm('Delete this comment?');
   if (!confirmed) return;
 
-  setImageComments((prev) => ({
-    ...prev,
-    [selectedImage.id]: (prev[selectedImage.id] || []).filter(
-      (comment) => comment.id !== commentId
-    ),
-  }));
+  const imageId = selectedImage.id;
+  setDiscussionSaving(true);
+  setDiscussionError(null);
+  try {
+    await deleteMoodBoardComment(imageId, commentId);
+    await refreshDiscussion(imageId);
+  } catch (error) {
+    setDiscussionError(getDiscussionErrorMessage(error));
+  } finally {
+    setDiscussionSaving(false);
+  }
 };
 
-const handleToggleDecision = (commentId: string) => {
+const handleToggleDecision = async (commentId: string) => {
   if (!selectedImage) return;
 
-  setImageComments((prev) => ({
-    ...prev,
-    [selectedImage.id]: (prev[selectedImage.id] || []).map((comment) =>
-      comment.id === commentId
-        ? { ...comment, isDecision: !comment.isDecision }
-        : comment
-    ),
-  }));
+  const imageId = selectedImage.id;
+  const comment = (imageComments[imageId] || []).find((entry) => entry.id === commentId);
+  if (!comment) return;
+
+  setDiscussionSaving(true);
+  setDiscussionError(null);
+  try {
+    await updateMoodBoardCommentDecision(imageId, commentId, !comment.isDecision);
+    await refreshDiscussion(imageId);
+  } catch (error) {
+    setDiscussionError(getDiscussionErrorMessage(error));
+  } finally {
+    setDiscussionSaving(false);
+  }
 };
 
-const handleUndoLastAction = () => {
+const handleUndoLastAction = async () => {
   if (!lastAction) return;
 
-  handleUpdateImageStatus(lastAction.imageId, lastAction.previousStatus);
+  if (!(await handleUpdateImageStatus(lastAction.imageId, lastAction.previousStatus))) return;
 
   const restoredImage = allMoodBoardImages.find(
     (img) => img.id === lastAction.imageId
@@ -387,39 +507,28 @@ const handleUndoLastAction = () => {
   setLastAction(null);
 };
 
-const handleAddReply = (commentId: string) => {
+const handleAddReply = async (commentId: string) => {
   const draft = replyDrafts[commentId]?.trim();
   if (!selectedImage || !draft) return;
 
-  const reply = {
-    id: `reply-${Date.now()}`,
-    author: userRole === 'planner' ? 'Planner' : 'Couple',
-    text: draft,
-    createdAt: new Date().toISOString(),
-  };
-
-  setImageComments((prev) => ({
-    ...prev,
-    [selectedImage.id]: (prev[selectedImage.id] || []).map((comment) =>
-      comment.id === commentId
-        ? {
-            ...comment,
-            replies: [...(comment.replies || []), reply],
-          }
-        : comment
-    ),
-  }));
-
-  setReplyDrafts((prev) => {
-    const next = { ...prev };
-    delete next[commentId];
-    return next;
-  });
-  setCollapsedReplies((prev) => ({
-  ...prev,
-  [commentId]: false,
-}));
-setHighlightedReplyId(reply.id);
+  const imageId = selectedImage.id;
+  setDiscussionSaving(true);
+  setDiscussionError(null);
+  try {
+    const reply = await addMoodBoardReply(imageId, commentId, draft);
+    await refreshDiscussion(imageId);
+    setReplyDrafts((prev) => {
+      const next = { ...prev };
+      delete next[commentId];
+      return next;
+    });
+    setCollapsedReplies((prev) => ({ ...prev, [commentId]: false }));
+    setHighlightedReplyId(reply.id);
+  } catch (error) {
+    setDiscussionError(getDiscussionErrorMessage(error));
+  } finally {
+    setDiscussionSaving(false);
+  }
 };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -435,24 +544,15 @@ setHighlightedReplyId(reply.id);
     }
 
     try {
-      setUploading(true);
-      // Simulate image upload
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const previewUrl = URL.createObjectURL(file);
-
-const newMockImage: MoodBoardImageState = {
-  id: `mock-${Date.now()}`,
+setUploading(true);
+await addMoodBoardImage({
+  url: '',
   title: file.name.replace(/\.[^/.]+$/, ''),
-  url: previewUrl,
   category: uploadCategory,
   notes: visionDescription.trim(),
-  status: 'maybe',
   uploadedBy: userRole === 'planner' ? 'Planner' : 'Couple',
   uploadedDate: new Date().toISOString(),
-};
-
-setMockUploadedImages((prev) => [newMockImage, ...prev]);
+}, file);
 setLastUploadedVisionNote(visionDescription.trim());
 setLastUploadedCategory(uploadCategory);
 addToast('Image uploaded successfully', 'success');
@@ -465,6 +565,9 @@ setUploadCategory('other');
       setUploading(false);
     }
   };
+
+  // Ensure hooks are always called before any early returns
+  if (!userRole) return <PageLoader />;
 
   if (loading) {
     return <MoodBoardSkeleton userRole={userRole} />;
@@ -496,7 +599,7 @@ setUploadCategory('other');
     other: '💫',
   };
 
-  const allMoodBoardImages = [...mockUploadedImages, ...editableExistingImages];
+  const allMoodBoardImages = editableExistingImages;
 
   const statusCounts = {
   all: allMoodBoardImages.length,
@@ -657,9 +760,10 @@ const filteredImages = allMoodBoardImages
   {userRole === 'planner' && isEditingSelectedImage && (
   <button
     onClick={handleSaveSelectedImage}
+    disabled={savingImageDetails}
     className="inline-flex min-h-[36px] items-center justify-center rounded-lg bg-charcoal/95 px-3 py-1.5 text-sm font-medium text-cream hover:bg-charcoal transition-colors whitespace-nowrap"
   >
-    Save
+    {savingImageDetails ? 'Saving…' : 'Save'}
   </button>
 )}
 
@@ -871,7 +975,7 @@ const filteredImages = allMoodBoardImages
     Decision comments are shown first to keep key planning choices easy to find.
   </p>
 
-  {latestDecisionComment && (
+  {latestDecisionComment && !discussionLoading && !discussionError && (
   <button
     type="button"
     onClick={() => {
@@ -922,7 +1026,28 @@ const filteredImages = allMoodBoardImages
   </button>
 )}
 
-  {(imageComments[selectedImage.id] || []).length > 0 ? (
+  {discussionLoading && (
+    <p className="text-sm text-slate" role="status">Loading discussion…</p>
+  )}
+
+  {discussionError && (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3" role="alert">
+      <p className="text-sm text-red-800">{discussionError}</p>
+      <button
+        type="button"
+        onClick={() => {
+          void refreshDiscussion(selectedImage.id).catch(() => {
+            // The load error is displayed in the discussion panel.
+          });
+        }}
+        className="shrink-0 rounded-md px-2.5 py-1 text-xs font-medium text-red-800 hover:bg-red-100"
+      >
+        Retry
+      </button>
+    </div>
+  )}
+
+  {!discussionLoading && !discussionError && ((imageComments[selectedImage.id] || []).length > 0 ? (
   <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
     {[...(imageComments[selectedImage.id] || [])]
   .sort((a, b) => Number(b.isDecision) - Number(a.isDecision))
@@ -968,18 +1093,22 @@ const filteredImages = allMoodBoardImages
     <button
       type="button"
       onClick={() => handleToggleDecision(comment.id)}
+      disabled={discussionSaving}
       className="inline-flex min-h-[28px] items-center justify-center rounded-md px-2.5 py-1 text-xs text-slate hover:text-charcoal hover:bg-white/70 transition-colors whitespace-nowrap"
     >
       {comment.isDecision ? 'Remove decision' : 'Mark as decision'}
     </button>
 
+    {(userRole === 'planner' || comment.userId === user?.id) && (
     <button
       type="button"
       onClick={() => handleDeleteComment(comment.id)}
+      disabled={discussionSaving}
       className="inline-flex min-h-[28px] items-center justify-center rounded-md px-2.5 py-1 text-xs text-slate hover:text-charcoal hover:bg-white/70 transition-colors whitespace-nowrap"
     >
       Delete
     </button>
+    )}
   </div>
 </div>
 
@@ -1084,6 +1213,7 @@ const filteredImages = allMoodBoardImages
       }
       rows={2}
       placeholder="Write a reply..."
+      disabled={discussionSaving}
       className="w-full rounded-xl border border-gold/20 bg-white px-4 py-3 text-sm text-charcoal placeholder:text-slate/70 focus:outline-none focus:ring-2 focus:ring-gold/30 resize-none"
     />
 
@@ -1105,7 +1235,7 @@ const filteredImages = allMoodBoardImages
   <button
     type="button"
     onClick={() => handleAddReply(comment.id)}
-    disabled={!replyDrafts[comment.id]?.trim()}
+    disabled={discussionLoading || discussionSaving || !replyDrafts[comment.id]?.trim()}
     className="inline-flex min-h-[28px] items-center justify-center rounded-md bg-charcoal px-3 py-1 text-xs font-medium text-cream hover:bg-slate transition-colors whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
   >
     Post Reply
@@ -1170,7 +1300,7 @@ const filteredImages = allMoodBoardImages
     No comments yet. Start the conversation around this inspiration image.
   </p>
 </div>
-  )}
+  ))}
   {lastAction && (
     <div className="flex justify-end">
       <button
@@ -1192,6 +1322,7 @@ const filteredImages = allMoodBoardImages
       value={newComment}
       onChange={(e) => setNewComment(e.target.value)}
       rows={3}
+      disabled={discussionLoading || discussionSaving}
       placeholder={
   userRole === 'planner'
     ? "Add guidance or feedback for this inspiration..."
@@ -1205,10 +1336,10 @@ const filteredImages = allMoodBoardImages
     <button
   type="button"
   onClick={handleAddComment}
-  disabled={!newComment.trim()}
+  disabled={discussionLoading || discussionSaving || !newComment.trim()}
   className="inline-flex min-h-[36px] items-center justify-center rounded-lg bg-charcoal/95 px-4 py-2 text-sm font-medium text-cream hover:bg-charcoal transition-colors whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
 >
-  Post Comment
+  {discussionSaving ? 'Saving…' : 'Post Comment'}
 </button>
   </div>
 </div>

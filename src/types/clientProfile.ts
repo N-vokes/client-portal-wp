@@ -1,12 +1,12 @@
 export interface Note {
-  id: number;
+  id: string;
   title: string;
   content: string;
   createdAt: string;
 }
 
 export interface CommunicationEntry {
-  id: number;
+  id: string;
   type: string;
   summary: string;
   date: string;
@@ -14,7 +14,7 @@ export interface CommunicationEntry {
 }
 
 export interface VendorEntry {
-  id: number;
+  id: string;
   vendorName: string;
   category: string;
   status: 'pending' | 'contacted' | 'booked';
@@ -22,7 +22,7 @@ export interface VendorEntry {
 }
 
 export interface PaymentEntry {
-  id: number;
+  id: string;
   title: string;
   amount: number;
   status: 'paid' | 'partial' | 'unpaid';
@@ -31,14 +31,14 @@ export interface PaymentEntry {
 }
 
 export interface VisionNote {
-  id: number;
+  id: string;
   title: string;
   description: string;
   category?: string;
 }
 
 export interface MilestoneEntry {
-  id: number;
+  id: string;
   title: string;
   dueDate: string;
   status: 'upcoming' | 'in progress' | 'completed';

@@ -101,9 +101,9 @@ export const useDashboard = (
   );
 
   const focusMoment = getDashboardFocusMoment(userRole);
-  const nextAction = getNextAction(userRole);
+  const nextAction = getNextAction(userRole, wedding?.id);
   const progressPercent = calculateProgressPercent(safeTimeline);
-  const primaryAction = getPrimaryAction(userRole);
+  const primaryAction = getPrimaryAction(userRole, wedding?.id);
 
   return {
     loading,

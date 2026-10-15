@@ -45,13 +45,9 @@ CREATE TABLE timeline_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   wedding_id UUID NOT NULL REFERENCES weddings(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
-  description TEXT,
   date DATE NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('planning', 'design', 'logistics', 'celebration')),
   completed BOOLEAN DEFAULT FALSE,
-  assigned_to TEXT,
-  created_date TIMESTAMP DEFAULT NOW(),
-  updated_date TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Create contracts table
@@ -64,8 +60,7 @@ CREATE TABLE contracts (
   uploaded_date TIMESTAMP DEFAULT NOW(),
   amount DECIMAL(10, 2),
   notes TEXT,
-  created_date TIMESTAMP DEFAULT NOW(),
-  updated_date TIMESTAMP DEFAULT NOW()
+  created_date TIMESTAMP DEFAULT NOW()
 );
 
 -- Create mood_board_images table

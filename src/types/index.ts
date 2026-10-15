@@ -1,5 +1,17 @@
 export type UserRole = 'planner' | 'couple';
 
+export interface MoodBoardCommentRecord {
+  id: string;
+  weddingId: string;
+  imageId: string;
+  parentCommentId: string | null;
+  userId: string;
+  authorRole: UserRole;
+  text: string;
+  createdAt: string;
+  isDecision: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -15,11 +27,8 @@ export interface User {
 export interface TimelineEvent {
   id: string;
   title: string;
-  description: string;
   date: string;
-  category: 'planning' | 'design' | 'logistics' | 'celebration';
   completed: boolean;
-  assignedTo?: string;
 }
 
 export type TimelineEventInput = Omit<TimelineEvent, 'id'>;
@@ -58,6 +67,7 @@ export interface MoodBoardImage {
   url: string;
   title: string;
   category: 'flowers' | 'dress' | 'decor' | 'colors' | 'cake' | 'other';
+  status?: 'love' | 'maybe' | 'pass';
   uploadedBy: string;
   uploadedDate: string;
   notes?: string;
@@ -86,3 +96,27 @@ export interface WeddingData {
   /** When this wedding was created in the system */
   createdDate: string;
 }
+
+export interface ClientRecord {
+  id: string;
+  weddingId: string;
+  coupleNames: string;
+  weddingDate: string;
+  ceremonyVenue: string | null;
+  receptionVenue: string | null;
+  guestCount: number | null;
+  budget: number | null;
+  planningStage: string | null;
+  weddingStyle: string | null;
+  preferredColors: string | null;
+  topPriorities: string | null;
+  mustHaves: string | null;
+  doNotWant: string | null;
+  mainHelpNeeded: string | null;
+  biggestConcern: string | null;
+  communicationPreference: string | null;
+  additionalNotes: string | null;
+  createdDate: string;
+}
+
+export type ClientRecordInput = Omit<ClientRecord, 'id' | 'createdDate'>;

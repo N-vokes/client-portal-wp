@@ -8,14 +8,12 @@ export type OverdueEvent = {
   id: string;
   title: string;
   daysOverdue: number;
-  category: string;
 };
 
 export type UpcomingMilestone = {
   id: string;
   title: string;
   daysUntil: number;
-  category: string;
 };
 
 import type { VendorType } from './index';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db, supabase } from '../lib/supabase';
 import { useWedding } from '../contexts/useWedding';
+import { db, getSession } from '../lib/supabase';
 
 interface OnboardingPageProps {
   errorMessage?: string | null;
@@ -13,13 +13,28 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
   errorMessage,
 }) => {
   const navigate = useNavigate();
-  const { refreshData } = useWedding();
+  const { setActiveWeddingId, refreshData } = useWedding();
   const [state, setState] = useState<OnboardingState>('ready');
   const [error, setError] = useState<string | null>(errorMessage || null);
   const [createdWeddingName, setCreatedWeddingName] = useState<string>('');
+  const [coupleNames, setCoupleNames] = useState('');
+  const [weddingDate, setWeddingDate] = useState('');
 
   const handleCreateWedding = async () => {
     if (state === 'creating' || state === 'success') return;
+
+    const trimmedCoupleNames = coupleNames.trim();
+    if (!trimmedCoupleNames) {
+      setError('Please enter the couple names for this wedding workspace.');
+      setState('error');
+      return;
+    }
+
+    if (!weddingDate) {
+      setError('Please select the wedding date.');
+      setState('error');
+      return;
+    }
 
     setError(null);
     setState('creating');
@@ -28,7 +43,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
       const {
         data: { session },
         error: sessionError,
-      } = await supabase.auth.getSession();
+      } = await getSession();
 
       if (sessionError) {
         throw sessionError;
@@ -39,23 +54,24 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
         throw new Error('Please sign in to continue.');
       }
 
-      const userRole =
-        user.user_metadata?.role === 'planner' ? 'planner' : 'couple';
-      const coupleNames =
-        typeof user.user_metadata?.name === 'string' && user.user_metadata.name
-          ? `${user.user_metadata.name}'s Wedding`
-          : 'Your Wedding';
-      const weddingDate = new Date().toISOString().split('T')[0];
+      const createdWedding = await db.createWeddingForUser(
+        user.id,
+        trimmedCoupleNames,
+        weddingDate
+      );
 
-      await db.createWeddingForUser(user.id, userRole, coupleNames, weddingDate);
-      setCreatedWeddingName(coupleNames);
-      setState('success');
-      
+      if (createdWedding?.id) {
+        setActiveWeddingId(createdWedding.id);
+      }
+
       await refreshData();
-      
-      setTimeout(() => {
-        navigate('/dashboard', { replace: true });
-      }, 1200);
+      setCreatedWeddingName(trimmedCoupleNames);
+      setState('success');
+
+      // small delay to let state sync properly
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      navigate('/onboarding/setup', { replace: true });
     } catch (createError: any) {
       setError(createError?.message || 'Unable to create your wedding. Please try again.');
       setState('error');
@@ -74,16 +90,43 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
               Welcome to Ever After
             </p>
             <h1 className="mt-4 text-4xl sm:text-5xl font-serif text-charcoal">
-              {isSuccess ? 'Wedding created! 🎉' : 'Create your wedding workspace'}
+              {isSuccess ? 'Wedding created!' : 'Create a wedding workspace'}
             </h1>
             <p className="mt-5 text-slate text-base leading-relaxed sm:text-lg">
               {isSuccess
-                ? `Your workspace for ${createdWeddingName} is ready. Let's start planning together.`
-                : 'Everything you need to plan, organize, and manage your wedding in one place.'}
+                ? `Your workspace for ${createdWeddingName} is ready.`
+                : 'Set up a dedicated workspace for a couple you’re planning for.'}
             </p>
 
             {!isSuccess && (
-              <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="mt-10 space-y-5">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-charcoal" htmlFor="coupleNames">
+                    Couple names
+                  </label>
+                  <input
+                    id="coupleNames"
+                    type="text"
+                    value={coupleNames}
+                    onChange={(event) => setCoupleNames(event.target.value)}
+                    placeholder="e.g. Sarah & Michael"
+                    className="w-full rounded-3xl border border-slate-200 bg-cream/70 px-4 py-3 text-sm text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-charcoal" htmlFor="weddingDate">
+                    Wedding date
+                  </label>
+                  <input
+                    id="weddingDate"
+                    type="date"
+                    value={weddingDate}
+                    onChange={(event) => setWeddingDate(event.target.value)}
+                    className="w-full rounded-3xl border border-slate-200 bg-cream/70 px-4 py-3 text-sm text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20"
+                  />
+                </div>
+
                 <button
                   type="button"
                   onClick={handleCreateWedding}
@@ -93,19 +136,11 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   {isCreating ? (
                     <>
                       <span className="inline-block mr-2 h-4 w-4 animate-spin rounded-full border-2 border-cream border-t-transparent" />
-                      Creating your wedding…
+                      Creating wedding…
                     </>
                   ) : (
-                    'Create Your Wedding'
+                    'Create Wedding'
                   )}
-                </button>
-
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-cream px-8 py-4 text-sm font-semibold text-charcoal"
-                >
-                  Join existing wedding (coming soon)
                 </button>
               </div>
             )}
@@ -114,18 +149,18 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
               <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
                 <button
                   type="button"
-                  onClick={() => navigate('/dashboard', { replace: true })}
+                  onClick={() => navigate('/onboarding/setup', { replace: true })}
                   className="inline-flex items-center justify-center rounded-full bg-charcoal px-8 py-4 text-sm font-semibold text-cream transition hover:bg-charcoal/90"
                 >
-                  Go to Dashboard
+                  Continue setup
                 </button>
               </div>
             )}
 
             <div className="mt-8 rounded-3xl border border-slate-200 bg-cream p-6 text-charcoal shadow-sm">
-              <h2 className="font-semibold text-lg">Why this exists</h2>
+              <h2 className="font-semibold text-lg">How this helps your planning</h2>
               <p className="mt-3 text-slate text-sm leading-relaxed">
-                Your wedding workspace keeps everything organized in one secure place.
+                As the planner, you manage this wedding workspace to keep timelines, vendor details, contracts, and planning progress organized for the couple.
               </p>
             </div>
 
@@ -175,16 +210,16 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
         {!isSuccess && (
           <div className="mt-10 grid gap-6 sm:grid-cols-2">
             <div className="rounded-3xl bg-cream p-6 text-charcoal shadow-sm">
-              <h2 className="font-semibold text-lg">Why start here?</h2>
+              <h2 className="font-semibold text-lg">Planner workspace</h2>
               <p className="mt-3 text-slate text-sm leading-relaxed">
-                Create a dedicated wedding workspace that only you can access. Once created, your timeline, contracts, and mood board are isolated to this wedding.
+                Create a dedicated space for each couple you’re managing so timelines, contracts, notes, and milestones stay organized in one place.
               </p>
             </div>
 
             <div className="rounded-3xl bg-cream p-6 text-charcoal shadow-sm">
               <h2 className="font-semibold text-lg">Next step</h2>
               <p className="mt-3 text-slate text-sm leading-relaxed">
-                After setup, you can invite collaborators, track progress, and use the full dashboard to stay organized.
+                After setup, you can begin customizing the workspace and tracking every milestone for the couple.
               </p>
             </div>
           </div>

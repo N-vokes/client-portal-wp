@@ -1,10 +1,10 @@
 import React from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { PageLoader } from '../components/PageLoader';
 
-interface MessagesPageProps {
-  userRole: 'planner' | 'couple';
-}
-
-export const MessagesPage: React.FC<MessagesPageProps> = ({ userRole }) => {
+export const MessagesPage: React.FC = () => {
+  const { userRole } = useAuth();
+  if (!userRole) return <PageLoader />;
   return (
     <div className="min-h-screen bg-cream page-enter">
       {/* Header */}

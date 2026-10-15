@@ -1,33 +1,59 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { useWedding } from '../../contexts/useWedding';
 
 interface ClientHeaderProps {
   coupleNames: string;
   weddingDate: string;
   location: string;
-  progress: number;
+  progress?: number | null;
+  readinessLabel?: string | null;
 }
 
-export const ClientHeader: React.FC<ClientHeaderProps> = ({ coupleNames, weddingDate, location, progress }) => {
+export const ClientHeader: React.FC<ClientHeaderProps> = ({
+  coupleNames,
+  weddingDate,
+  location,
+  progress,
+  readinessLabel,
+}) => {
+  const { userRole } = useAuth();
+  const { wedding } = useWedding();
+  const basePath =
+    userRole === 'planner'
+      ? wedding?.id
+        ? `/dashboard/${wedding.id}`
+        : '/portfolio'
+      : '/couple/dashboard';
+
+  const hasProgress = progress !== null && progress !== undefined && readinessLabel !== null && readinessLabel !== undefined;
+
   return (
     <div className="bg-gradient-to-br from-sand to-cream border-b border-gold/20">
       <div className="max-w-6xl mx-auto px-8 py-16 md:py-24">
         <h1 className="text-5xl font-serif text-charcoal mb-3">
-          {coupleNames || 'No Wedding Selected'}
+          {coupleNames || 'Client Profile'}
         </h1>
         <div className="grid gap-2 md:grid-cols-3 mb-4 text-sm text-slate">
           <div>Wedding date: {new Date(weddingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
           <div>Location: {location}</div>
-          <div>Progress: {progress}%</div>
+          <div>Progress: {hasProgress ? `${progress}%` : 'Progress unavailable'}</div>
         </div>
         <p className="text-lg text-slate max-w-2xl leading-relaxed">
           Detailed client profile for planning progress, wedding timing, and location details.
         </p>
         <div className="mt-4 inline-flex flex-wrap items-center gap-3">
-          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gold/20 text-gold">On track</span>
-          <span className="text-sm text-slate">Vendor alignment and decor plan confirm key direction.</span>
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${hasProgress ? 'bg-gold/20 text-gold' : 'bg-slate-100 text-slate-600'}`}>
+            {hasProgress ? readinessLabel : 'Progress unavailable'}
+          </span>
+          <span className="text-sm text-slate">
+            {hasProgress
+              ? 'Vendor alignment and decor plan confirm key direction.'
+              : 'Progress will appear once the wedding data has loaded.'}
+          </span>
         </div>
-        <Link to="/dashboard/clients" className="mt-6 inline-block btn-secondary">Back to Clients</Link>
+        <Link to={`${basePath}/clients`} className="mt-6 inline-block btn-secondary">Back to Clients</Link>
       </div>
     </div>
   );

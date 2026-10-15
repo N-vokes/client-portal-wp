@@ -1,36 +1,61 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useWedding } from '../../contexts/useWedding';
+import { useAuth } from '../../hooks/useAuth';
 
 interface NavigationProps {
-  userRole: 'planner' | 'couple';
-  onBackToEntry: () => void;
+  mode?: 'planner' | 'couple';
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ userRole, onBackToEntry }) => {
+export const Navigation: React.FC<NavigationProps> = ({ mode }) => {
   const location = useLocation();
   const { wedding } = useWedding();
+  const { userRole } = useAuth();
+  const uiMode = mode ?? (userRole ?? 'couple');
 
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-    { path: '/dashboard/timeline', label: 'Timeline', icon: '📅' },
-    { path: '/dashboard/contracts', label: 'Contracts', icon: '📄' },
-    { path: '/dashboard/moodboard', label: 'Mood Board', icon: '✨' },
-  ];
+  const basePath =
+    uiMode === 'planner'
+      ? wedding?.id
+        ? `/dashboard/${wedding.id}`
+        : '/portfolio'
+      : '/couple/dashboard';
 
-  if (userRole === 'planner') {
-    navItems.push({ path: '/dashboard/clients', label: 'Clients', icon: '👥' });
-  }
+  const navItems =
+    uiMode === 'planner'
+      ? [
+          { path: '/dashboard', label: 'Planner Dashboard', icon: '🏠' },
+          { path: '/portfolio', label: 'Portfolio', icon: '📁' },
+          { path: `${basePath}`, label: 'Wedding Workspace', icon: '💍' },
+          { path: `${basePath}/timeline`, label: 'Timeline', icon: '📅' },
+          { path: `${basePath}/contracts`, label: 'Contracts', icon: '📄' },
+          { path: `${basePath}/moodboard`, label: 'Mood Board', icon: '✨' },
+          { path: `${basePath}/clients`, label: 'Clients', icon: '👥' },
+        ]
+      : [
+          { path: `${basePath}`, label: 'Dashboard', icon: '🏠' },
+          { path: `${basePath}/timeline`, label: 'Timeline', icon: '📅' },
+          { path: `${basePath}/contracts`, label: 'Contracts', icon: '📄' },
+          { path: `${basePath}/moodboard`, label: 'Mood Board', icon: '✨' },
+        ];
 
   return (
-    <nav className="bg-white border-b border-gold/20 sticky top-0 z-50">
+    <nav className={`sticky top-0 z-50 border-b ${
+      uiMode === 'planner'
+        ? 'border-[#D4A843]/40 bg-[#075B46] shadow-[0_4px_18px_rgba(23,45,38,0.16)]'
+        : 'border-gold/20 bg-white'
+    }`}>
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity self-start">
-          <div className="text-2xl">💍</div>
+        <Link
+          to="/"
+          className={`flex items-center gap-2 transition-opacity hover:opacity-80 self-start ${
+            uiMode === 'planner' ? 'text-white' : ''
+          } ${uiMode === 'planner' ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5BC59] focus-visible:ring-offset-2 focus-visible:ring-offset-[#075B46]' : ''}`}
+        >
+          <div className={`text-2xl ${uiMode === 'planner' ? 'text-[#E5BC59]' : ''}`}>💍</div>
           <div>
-            <h1 className="text-lg md:text-xl font-serif text-charcoal">The Ever After</h1>
-            <p className="text-xs text-slate">
+            <h1 className={`text-lg md:text-xl font-serif ${uiMode === 'planner' ? 'text-white' : 'text-charcoal'}`}>The Ever After</h1>
+            <p className={`text-xs ${uiMode === 'planner' ? 'text-white/75' : 'text-slate'}`}>
               Wedding Portal
             </p>
           </div>
@@ -43,35 +68,35 @@ export const Navigation: React.FC<NavigationProps> = ({ userRole, onBackToEntry 
               <Link
                 to={item.path}
                 className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-md transition-all duration-200 text-sm md:text-base ${
-                  location.pathname === item.path || location.pathname.startsWith(item.path + '/')
-                    ? 'bg-sand text-charcoal font-semibold shadow-sm'
-                    : 'text-slate hover:text-charcoal hover:bg-sand/40'
-                }`}
+                  (item.path === '/dashboard'
+                    ? location.pathname === '/dashboard'
+                    : location.pathname === item.path || location.pathname.startsWith(item.path + '/'))
+                    ? uiMode === 'planner'
+                      ? 'border border-[#E5BC59] bg-[#D4A843] text-[#172D26] font-semibold shadow-sm'
+                      : 'bg-sand text-charcoal font-semibold shadow-sm'
+                    : uiMode === 'planner'
+                      ? 'border border-transparent text-white/90 hover:border-white/20 hover:bg-white/10 hover:text-white'
+                      : 'text-slate hover:text-charcoal hover:bg-sand/40'
+                } ${uiMode === 'planner' ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5BC59] focus-visible:ring-offset-2 focus-visible:ring-offset-[#075B46]' : ''}`}
               >
-                <span>{item.icon}</span>
+                <span className={uiMode === 'planner' ? 'grayscale brightness-0 invert' : ''}>{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             </li>
           ))}
         </ul>
 
-        {/* User Info + Switch View */}
-<div className="flex flex-col items-start gap-2 text-left md:items-end md:text-right text-sm self-start md:self-auto">
-  <div>
-    <p className="text-charcoal font-medium break-words">
-      {wedding?.coupleNames ?? 'No Wedding Selected'}
-    </p>
-    <p className="text-slate text-xs">{userRole === 'planner' ? 'Planner' : 'Couple'}</p>
-  </div>
-
-  <button
-    type="button"
-    onClick={onBackToEntry}
-    className="inline-flex items-center justify-center rounded-full border border-gold/20 bg-white px-3 py-1 text-xs sm:text-sm text-charcoal hover:bg-sand/40 transition-colors"
-  >
-    Switch View
-  </button>
-</div>
+        {/* User Info */}
+        <div className="flex flex-col items-start gap-2 text-left md:items-end md:text-right text-sm self-start md:self-auto">
+          <div>
+            <p className={`font-medium break-words ${uiMode === 'planner' ? 'text-white' : 'text-charcoal'}`}>
+              {uiMode === 'planner'
+                ? wedding?.coupleNames ?? 'Portfolio'
+                : wedding?.coupleNames ?? 'Your Wedding'}
+            </p>
+            <p className={`text-xs ${uiMode === 'planner' ? 'text-white/75' : 'text-slate'}`}>{uiMode === 'planner' ? 'Planner' : 'Couple'}</p>
+          </div>
+        </div>
       </div>
     </nav>
   );

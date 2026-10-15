@@ -103,7 +103,7 @@ export const CommunicationLogSection: React.FC<CommunicationLogSectionProps> = (
   No communications logged yet. Add one above to keep track.
 </div>
         ) : (
-          communication.slice().reverse().map((entry) => (
+          communication.map((entry) => (
             <div key={entry.id} className="bg-white p-3 sm:p-4 rounded-lg border border-gold/20">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between mb-2">
                 <div>

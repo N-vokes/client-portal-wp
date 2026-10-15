@@ -9,24 +9,8 @@ interface Props {
   onCreate: (event: Omit<TimelineEvent, 'id'>) => Promise<void>;
   onUpdate?: (id: string, updates: Partial<TimelineEvent>) => Promise<void>;
   editingEvent?: TimelineEvent | null;
+  mode: 'create' | 'edit';
 }
-
-const validCategories: TimelineEvent['category'][] = [
-  'planning',
-  'design',
-  'logistics',
-  'celebration',
-];
-
-const categoryLabels: Record<TimelineEvent['category'], string> = {
-  planning: 'Planning',
-  design: 'Design',
-  logistics: 'Logistics',
-  celebration: 'Celebration',
-};
-
-const isValidCategory = (category: string): category is TimelineEvent['category'] =>
-  validCategories.includes(category as TimelineEvent['category']);
 
 export const AddTimelineEventModal: React.FC<Props> = ({
   isOpen,
@@ -34,12 +18,10 @@ export const AddTimelineEventModal: React.FC<Props> = ({
   onCreate,
   onUpdate,
   editingEvent = null,
+  mode,
 }) => {
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
-  const [category, setCategory] = useState<TimelineEvent['category']>('planning');
-  const [assignedTo, setAssignedTo] = useState('');
   const [completed, setCompleted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,10 +30,7 @@ export const AddTimelineEventModal: React.FC<Props> = ({
     if (!isOpen) return;
 
     setTitle(editingEvent?.title ?? '');
-    setDescription(editingEvent?.description ?? '');
     setDate(editingEvent?.date ?? '');
-    setCategory(editingEvent?.category ?? 'planning');
-    setAssignedTo(editingEvent?.assignedTo ?? '');
     setCompleted(editingEvent?.completed ?? false);
     setErrorMessage(null);
   }, [editingEvent, isOpen]);
@@ -64,7 +43,6 @@ export const AddTimelineEventModal: React.FC<Props> = ({
     if (!title.trim()) return 'Title is required.';
     if (!date.trim()) return 'Date is required.';
     if (!isValidDate(date)) return 'Please enter a valid date.';
-    if (!isValidCategory(category)) return 'Please select a valid category.';
     return null;
   };
 
@@ -81,14 +59,14 @@ export const AddTimelineEventModal: React.FC<Props> = ({
     try {
       const payload: Omit<TimelineEvent, 'id'> = {
         title: title.trim(),
-        description: description.trim(),
         date,
-        category,
-        assignedTo: assignedTo.trim() || undefined,
         completed,
       };
 
-      if (editingEvent && onUpdate) {
+      if (mode === 'edit') {
+        if (!editingEvent || !onUpdate) {
+          throw new Error('Unable to edit this milestone. Close the dialog and try again.');
+        }
         await onUpdate(editingEvent.id, payload);
       } else {
         await onCreate(payload);
@@ -108,7 +86,7 @@ export const AddTimelineEventModal: React.FC<Props> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingEvent ? 'Edit Milestone' : 'Add Milestone'}
+      title={mode === 'edit' ? 'Edit Milestone' : 'Add Milestone'}
       size="large"
       footer={
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
@@ -150,55 +128,16 @@ export const AddTimelineEventModal: React.FC<Props> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-charcoal mb-2">Description</label>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              className="w-full min-h-[140px] rounded-2xl border border-gold/20 bg-cream px-4 py-3 text-charcoal shadow-sm focus:border-charcoal focus:outline-none"
-              placeholder="Add a short description for the milestone"
+            <label className="block text-sm font-medium text-charcoal mb-2">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              className="w-full rounded-2xl border border-gold/20 bg-cream px-4 py-3 text-charcoal shadow-sm focus:border-charcoal focus:outline-none"
             />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-charcoal mb-2">Date</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(event) => setDate(event.target.value)}
-                className="w-full rounded-2xl border border-gold/20 bg-cream px-4 py-3 text-charcoal shadow-sm focus:border-charcoal focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-charcoal mb-2">Category</label>
-              <select
-                value={category}
-                onChange={(event) =>
-                  isValidCategory(event.target.value) && setCategory(event.target.value as TimelineEvent['category'])
-                }
-                className="w-full rounded-2xl border border-gold/20 bg-cream px-4 py-3 text-charcoal shadow-sm focus:border-charcoal focus:outline-none"
-              >
-                {validCategories.map((option) => (
-                  <option key={option} value={option}>
-                    {categoryLabels[option]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-charcoal mb-2">Assigned To</label>
-              <input
-                value={assignedTo}
-                onChange={(event) => setAssignedTo(event.target.value)}
-                className="w-full rounded-2xl border border-gold/20 bg-cream px-4 py-3 text-charcoal shadow-sm focus:border-charcoal focus:outline-none"
-                placeholder="Planner, couple, or vendor"
-              />
-            </div>
-
+          <div className="grid gap-4">
             <div className="flex items-center justify-between rounded-2xl border border-gold/20 bg-cream px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-charcoal">Completed</p>

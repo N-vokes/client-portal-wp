@@ -11,7 +11,6 @@ export type UpcomingMilestone = {
   id: string;
   title: string;
   daysUntil: number;
-  category: string;
 };
 
 export type RecentContract = {
@@ -62,18 +61,18 @@ export const getDashboardHeroCopy = (
 ): DashboardHeroCopy => {
   if (userRole === 'planner') {
     return {
-      heading: coupleNames ? `${coupleNames} — Planner Dashboard` : 'No Wedding Selected',
+      heading: coupleNames ? `${coupleNames} — Planner Dashboard` : 'Planner Dashboard',
       message: coupleNames
         ? 'Manage milestones, contracts, and inspiration in one elegant workspace.'
-        : 'Select a wedding to begin planning.',
+        : 'Manage milestones, contracts, and inspiration in one elegant workspace.',
     };
   }
 
   return {
-    heading: coupleNames ? `${coupleNames} — Wedding Dashboard` : 'No Wedding Selected',
+    heading: coupleNames ? `${coupleNames} — Wedding Dashboard` : 'Your Wedding',
     message: coupleNames
       ? 'Keep your planning details organized, share progress, and stay aligned.'
-      : 'Select a wedding to see your wedding journey.',
+      : 'Complete onboarding to set up your wedding details and start planning.',
   };
 };
 
@@ -87,7 +86,6 @@ export const mapUpcomingMilestones = (
     title: string;
     date: string;
     completed: boolean;
-    category: string;
   }> = []
 ): UpcomingMilestone[] =>
   timelineEvents
@@ -97,7 +95,6 @@ export const mapUpcomingMilestones = (
       id: String(event.id),
       title: event.title,
       daysUntil: calculateDaysUntil(event.date),
-      category: event.category,
     }));
 
 /**
@@ -220,7 +217,8 @@ export const getDashboardFocusMoment = (
       };
 
 export const getNextAction = (
-  userRole: 'planner' | 'couple'
+  userRole: 'planner' | 'couple',
+  weddingId?: string
 ): NextActionItem =>
   userRole === 'planner'
     ? {
@@ -228,31 +226,32 @@ export const getNextAction = (
         action: 'Review updated floral direction with client',
         hint: 'Waiting on final confirmation before vendor lock-in',
         cta: 'Open Mood Board',
-        link: '/moodboard',
+        link: weddingId ? `/dashboard/${weddingId}/moodboard` : '/moodboard',
       }
     : {
         title: 'Next Step for You',
         action: 'Review your updated floral concepts',
         hint: 'Your planner is ready for your feedback',
         cta: 'View Mood Board',
-        link: '/moodboard',
+        link: weddingId ? `/dashboard/${weddingId}/moodboard` : '/moodboard',
       };
 
 export const getPrimaryAction = (
-  userRole: 'planner' | 'couple'
+  userRole: 'planner' | 'couple',
+  weddingId?: string
 ): PrimaryAction =>
   userRole === 'planner'
     ? {
         title: 'What would you like to review next?',
         text: 'Keep momentum by checking upcoming milestones, reviewing contracts, or guiding clients.',
         buttonLabel: 'Open Mood Board',
-        buttonLink: '/moodboard',
+        buttonLink: weddingId ? `/dashboard/${weddingId}/moodboard` : '/moodboard',
       }
     : {
         title: 'What would you like to look at next?',
         text: 'Explore inspiration, review shared documents, and stay aligned.',
         buttonLabel: 'Open Mood Board',
-        buttonLink: '/moodboard',
+        buttonLink: weddingId ? `/dashboard/${weddingId}/moodboard` : '/moodboard',
       };
 
 function getVendorIcon(type?: string) {

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { useWedding } from '../../contexts/useWedding';
 import { EmptyState } from '../../components/StateCards';
 
 import heroImage from '../../assets/images/hero/hero.jpg';
@@ -85,6 +87,14 @@ export const DashboardContracts: React.FC<DashboardContractsProps> = ({
   recentContracts,
 }) => {
   const navigate = useNavigate();
+  const { userRole } = useAuth();
+  const { wedding } = useWedding();
+  const basePath =
+    userRole === 'planner'
+      ? wedding?.id
+        ? `/dashboard/${wedding.id}`
+        : '/portfolio'
+      : '/couple/dashboard';
 
   return (
     <div className="mb-16">
@@ -93,7 +103,7 @@ export const DashboardContracts: React.FC<DashboardContractsProps> = ({
         {heading}
       </h2>
 
-      <Link to="/dashboard/contracts" className="btn-secondary text-sm">
+      <Link to={`${basePath}/contracts`} className="btn-secondary text-sm">
         View All
       </Link>
     </div>
@@ -104,7 +114,7 @@ export const DashboardContracts: React.FC<DashboardContractsProps> = ({
         title="No contracts uploaded yet"
         message="Keep your wedding agreement library complete by uploading or linking your first contract. Contracts help everyone stay aligned."
         actionLabel="View all contracts"
-        onAction={() => navigate('/dashboard/contracts')}
+        onAction={() => navigate(`${basePath}/contracts`)}
         className="py-12"
       />
     ) : (

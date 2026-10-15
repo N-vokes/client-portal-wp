@@ -1,22 +1,27 @@
 import React, { useRef, useState } from 'react';
 import { useWedding } from '../contexts/useWedding';
+import { useAuth } from '../hooks/useAuth';
+import { PageLoader } from '../components/PageLoader';
 import { usePlannerActions } from '../domain/plannerActions';
 import { useToast } from '../contexts/useToast';
 import { ContractVaultSkeleton } from '../components/Skeleton';
 import { validators, getErrorMessage } from '../utils/validation';
 import { EmptyState, ErrorState } from '../components/StateCards';
+import { db } from '../lib/supabase';
+import type { Contract } from '../types';
 
-interface ContractVaultProps {
-  userRole: 'planner' | 'couple';
-}
-
-export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
-  const { contracts, loading } = useWedding();
+export const ContractVault: React.FC = () => {
+  const { contracts, loading, wedding, addContract, refreshData } = useWedding();
   const { executePlannerAction } = usePlannerActions();
   const { addToast } = useToast();
+  const { userRole } = useAuth();
   const [selectedType, setSelectedType] = useState<string>('all');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [vendorName, setVendorName] = useState('');
+  const [vendorType, setVendorType] = useState<Contract['vendorType']>('other');
+  const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const vendorTypes = [
@@ -44,6 +49,9 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
       : contracts.filter((contract) => contract.vendorType === selectedType);
 
   const totalAmount = filteredContracts.reduce((sum, contract) => sum + (contract.amount || 0), 0);
+  const storedFileCount = filteredContracts.filter(
+    (contract) => contract.fileUrl && contract.fileUrl !== 'pending-upload'
+  ).length;
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this contract?')) {
@@ -56,9 +64,62 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
     }
   };
 
+  const handleOpenContract = async (contract: Contract, download = false) => {
+    if (!contract.fileUrl || contract.fileUrl === 'pending-upload') {
+      addToast('This contract does not have an uploaded file yet.', 'error');
+      return;
+    }
+
+    const fileWindow = window.open('about:blank', '_blank');
+    if (fileWindow) fileWindow.opener = null;
+
+    try {
+      const signedUrl = await db.getContractSignedUrl(
+        contract.fileUrl,
+        download ? contract.fileName : undefined
+      );
+
+      if (!fileWindow) {
+        addToast('Please allow pop-ups to open this contract.', 'error');
+        return;
+      }
+
+      fileWindow.location.href = signedUrl;
+    } catch (error) {
+      fileWindow?.close();
+      addToast(getErrorMessage(error), 'error');
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    const trimmedVendorName = vendorName.trim();
+    if (!wedding?.id) {
+      const message = 'No active wedding workspace is selected.';
+      setUploadError(message);
+      addToast(message, 'error');
+      event.target.value = '';
+      return;
+    }
+
+    if (!trimmedVendorName) {
+      const message = 'Enter the vendor name before choosing a contract file.';
+      setUploadError(message);
+      addToast(message, 'error');
+      event.target.value = '';
+      return;
+    }
+
+    const contractAmount = amount.trim() ? Number(amount) : undefined;
+    if (contractAmount !== undefined && (!Number.isFinite(contractAmount) || contractAmount < 0)) {
+      const message = 'Enter a valid contract amount or leave it blank.';
+      setUploadError(message);
+      addToast(message, 'error');
+      event.target.value = '';
+      return;
+    }
 
     // Validate file
     const validationErrors = validators.validateFile(file, {
@@ -70,23 +131,51 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
       const message = validationErrors[0].message;
       setUploadError(message);
       addToast(message, 'error');
+      event.target.value = '';
       return;
     }
 
+    let uploadedFilePath: string | null = null;
     try {
       setUploading(true);
-      // Simulate file upload
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setUploadError(null);
+      uploadedFilePath = await db.uploadContractFile(wedding.id, file);
+      await addContract({
+        vendorName: trimmedVendorName,
+        vendorType,
+        fileName: file.name,
+        fileUrl: uploadedFilePath,
+        uploadedDate: new Date().toISOString(),
+        amount: contractAmount,
+        notes: notes.trim() || undefined,
+      });
+      uploadedFilePath = null;
+      await refreshData();
       addToast('Contract uploaded successfully', 'success');
+      setVendorName('');
+      setVendorType('other');
+      setAmount('');
+      setNotes('');
       event.target.value = ''; // Reset file input
     } catch (error) {
-      const message = getErrorMessage(error);
+      let message = getErrorMessage(error);
+      if (uploadedFilePath) {
+        try {
+          await db.removeContractFile(uploadedFilePath);
+        } catch (cleanupError) {
+          console.error('Failed to remove contract file after database insert failure:', cleanupError);
+          message += ' The uploaded file could not be removed automatically.';
+        }
+      }
       setUploadError(message);
       addToast(message, 'error');
     } finally {
       setUploading(false);
     }
   };
+
+  // Ensure hooks are always called before any early returns
+  if (!userRole) return <PageLoader />;
 
   if (loading) {
     return <ContractVaultSkeleton userRole={userRole} />;
@@ -129,8 +218,8 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
             <p className="text-slate">Total Contracted</p>
           </div>
           <div className="card text-center">
-            <p className="text-4xl font-serif text-charcoal mb-2">6</p>
-            <p className="text-slate">All Signed ✓</p>
+            <p className="text-4xl font-serif text-charcoal mb-2">{storedFileCount}</p>
+            <p className="text-slate">Files Stored</p>
           </div>
         </div>
 
@@ -180,20 +269,13 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => window.open(contract.fileUrl, '_blank')}
+                      onClick={() => void handleOpenContract(contract)}
                       className="flex-1 btn-secondary text-xs"
                     >
                       👁️ View
                     </button>
                     <button
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = contract.fileUrl;
-                        link.download = contract.fileName;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
+                      onClick={() => void handleOpenContract(contract, true)}
                       className="flex-1 btn-secondary text-xs"
                     >
                       📥 Download
@@ -234,8 +316,70 @@ export const ContractVault: React.FC<ContractVaultProps> = ({ userRole }) => {
             <p className="text-4xl mb-4">📤</p>
             <h3 className="text-xl font-serif text-charcoal mb-2">Upload New Contract</h3>
             <p className="text-slate mb-6">Drag and drop a PDF or click to browse</p>
+            <div className="mx-auto mb-6 grid max-w-3xl grid-cols-1 gap-4 px-4 text-left sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-charcoal" htmlFor="contract-vendor-name">
+                  Vendor name
+                </label>
+                <input
+                  id="contract-vendor-name"
+                  type="text"
+                  value={vendorName}
+                  onChange={(inputEvent) => setVendorName(inputEvent.target.value)}
+                  maxLength={160}
+                  disabled={uploading}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20 disabled:opacity-60"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-charcoal" htmlFor="contract-vendor-type">
+                  Vendor type
+                </label>
+                <select
+                  id="contract-vendor-type"
+                  value={vendorType}
+                  onChange={(inputEvent) => setVendorType(inputEvent.target.value as Contract['vendorType'])}
+                  disabled={uploading}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20 disabled:opacity-60"
+                >
+                  {vendorTypes.filter((type) => type.id !== 'all').map((type) => (
+                    <option key={type.id} value={type.id}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-charcoal" htmlFor="contract-amount">
+                  Amount (optional)
+                </label>
+                <input
+                  id="contract-amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(inputEvent) => setAmount(inputEvent.target.value)}
+                  disabled={uploading}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20 disabled:opacity-60"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-charcoal" htmlFor="contract-notes">
+                  Notes (optional)
+                </label>
+                <input
+                  id="contract-notes"
+                  type="text"
+                  value={notes}
+                  onChange={(inputEvent) => setNotes(inputEvent.target.value)}
+                  maxLength={1000}
+                  disabled={uploading}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20 disabled:opacity-60"
+                />
+              </div>
+            </div>
             <label className="inline-block">
               <input
+                ref={fileInputRef}
                 type="file"
                 onChange={handleFileUpload}
                 disabled={uploading}

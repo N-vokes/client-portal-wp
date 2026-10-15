@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import type { TimelineEvent } from '../types';
 import { useWedding } from '../contexts/useWedding';
+import { useAuth } from '../hooks/useAuth';
+import { PageLoader } from '../components/PageLoader';
 import { useToast } from '../contexts/useToast';
 import { TimelineSkeleton } from '../components/Skeleton';
 import { getErrorMessage, validators } from '../utils/validation';
@@ -10,23 +12,11 @@ import {
   type TimelineSuggestion,
 } from '../utils/timelineSuggestions';
 import { formatShortDate } from '../utils/formatting';
-import {
-  categoryIcons,
-  categoryLabels,
-  timelineCategoryFilters,
-  isValidTimelineCategory,
-} from '../utils/timeline';
 import { useTimeline } from '../hooks/useTimeline';
 import AddTimelineEventModal from '../components/AddTimelineEventModal';
 import { EmptyState, ErrorState } from '../components/StateCards';
 
-interface TimelinePageProps {
-  userRole: 'planner' | 'couple';
-}
-
-export const TimelinePage: React.FC<TimelinePageProps> = ({
-  userRole,
-}) => {
+export const TimelinePage: React.FC = () => {
   const {
     wedding,
     timelineEvents,
@@ -39,9 +29,9 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
   } = useWedding();
   const { addToast } = useToast();
 
+  const { userRole } = useAuth();
+  const safeUserRole = userRole ?? 'couple';
   const {
-    selectedCategory,
-    setSelectedCategory,
     filteredEvents,
     safeEvents,
     completedCount,
@@ -51,6 +41,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [animatingId, setAnimatingId] = useState<string | null>(null);
 
   const stats = useMemo(
@@ -95,14 +86,11 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
           type: 'CREATE',
           data: {
             title: suggestion.title,
-            description: suggestion.description,
             date,
-            category: suggestion.category,
-            assignedTo: undefined,
             completed: false,
           },
         },
-        userRole
+        safeUserRole
       );
 
       addToast('Suggestion added to timeline', 'success');
@@ -130,7 +118,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
     }
 
     try {
-      await handleTimelineAction({ type: 'TOGGLE_COMPLETE', id: eventId }, userRole);
+      await handleTimelineAction({ type: 'TOGGLE_COMPLETE', id: eventId }, safeUserRole);
 
       addToast(
         nextCompleted
@@ -147,47 +135,33 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
 
   const handleCreate = async (event: Omit<TimelineEvent, 'id'>) => {
     if (!isValidDate(event.date)) {
-      addToast('Invalid date', 'error');
-      return;
+      throw new Error('Invalid date');
     }
 
-    if (!isValidTimelineCategory(event.category)) {
-      addToast('Invalid category', 'error');
-      return;
-    }
-
-    try {
-      await handleTimelineAction({ type: 'CREATE', data: event }, userRole);
-      addToast('Milestone added', 'success');
-      setIsAddModalOpen(false);
-    } catch (err) {
-      addToast(getErrorMessage(err), 'error');
-    }
+    await handleTimelineAction({ type: 'CREATE', data: event }, safeUserRole);
+    addToast('Milestone added', 'success');
   };
 
   const handleUpdate = async (id: string, updates: Partial<TimelineEvent>) => {
     if (updates.date && !isValidDate(updates.date)) {
-      addToast('Invalid date', 'error');
-      return;
+      throw new Error('Invalid date');
     }
 
-    if (updates.category && !isValidTimelineCategory(updates.category)) {
-      addToast('Invalid category', 'error');
-      return;
-    }
-
-    try {
-      await handleTimelineAction({ type: 'UPDATE', id, data: updates }, userRole);
-      addToast('Milestone updated', 'success');
-      setEditingEvent(null);
-      setIsAddModalOpen(false);
-    } catch (err) {
-      addToast(getErrorMessage(err), 'error');
-    }
+    await handleTimelineAction({ type: 'UPDATE', id, data: updates }, safeUserRole);
+    addToast('Milestone updated', 'success');
+    setEditingEvent(null);
+    setIsAddModalOpen(false);
   };
 
   const handleEdit = (event: TimelineEvent) => {
     setEditingEvent(event);
+    setModalMode('edit');
+    setIsAddModalOpen(true);
+  };
+
+  const handleOpenCreate = () => {
+    setEditingEvent(null);
+    setModalMode('create');
     setIsAddModalOpen(true);
   };
 
@@ -196,12 +170,17 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
     if (!ok) return;
 
     try {
-      await handleTimelineAction({ type: 'DELETE', id }, userRole);
+      await handleTimelineAction({ type: 'DELETE', id }, safeUserRole);
       addToast('Milestone deleted', 'success');
     } catch (err) {
       addToast(getErrorMessage(err), 'error');
     }
   };
+
+  // Ensure hooks are always called before any early returns
+  if (!userRole) {
+    return <PageLoader />;
+  }
 
   if (loading) {
     return <TimelineSkeleton userRole={userRole} />;
@@ -237,25 +216,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
         </div>
       </div>
 
-      {/* FILTERS */}
       <div className="max-w-4xl mx-auto px-8 py-10">
-        <div className="flex flex-wrap gap-3 mb-10">
-          {timelineCategoryFilters.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-lg transition ${
-                selectedCategory === category
-                  ? 'bg-charcoal text-cream'
-                  : 'bg-sand text-charcoal'
-              }`}>
-              {category === 'all'
-                ? '✨ All'
-                : `${categoryIcons[category]} ${categoryLabels[category]}`}
-            </button>
-          ))}
-        </div>
-
         <div className="mb-10 rounded-3xl border border-gold/20 bg-white/80 p-8">
           <div className="mb-6 flex flex-col gap-2">
             <p className="text-sm uppercase tracking-[0.2em] text-slate">
@@ -282,7 +243,6 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                         {suggestion.description}
                       </p>
                       <div className="text-sm text-slate">
-                        <span>{categoryLabels[suggestion.category]}</span>
                         <span className="ml-4">
                           ~{suggestion.estimatedDaysBeforeWedding} days before wedding
                         </span>
@@ -302,7 +262,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
             </div>
           ) : (
             <p className="text-slate">
-              No AI suggestions are available right now. Add a wedding date or complete missing categories to see suggestions.
+              No suggestions are available right now. Add a wedding date or suggested milestones to see recommendations.
             </p>
           )}
         </div>
@@ -315,7 +275,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                 <div />
                 {userRole === 'planner' && (
                   <button
-                    onClick={() => setIsAddModalOpen(true)}
+                    onClick={handleOpenCreate}
                     className="rounded-full bg-charcoal px-5 py-3 text-sm font-semibold text-cream"
                   >
                     + Add Milestone
@@ -332,7 +292,6 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
               </div>
 
           {filteredEvents.map((event) => {
-            const category = event.category;
             const eventId = event.id;
 
             return (
@@ -349,9 +308,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                       ? 'animate-pulse'
                       : ''
                   }`}>
-                  <span className="text-2xl">
-                    {categoryIcons[category]}
-                  </span>
+                  <span className="text-2xl">📅</span>
                 </button>
 
                 {/* CARD */}
@@ -359,10 +316,6 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                   <h3 className="font-serif text-lg text-charcoal">
                     {event.title}
                   </h3>
-
-                  <p className="text-slate mb-4">
-                    {event.description}
-                  </p>
 
                   <div className="flex gap-2 mt-4">
                     {userRole === 'planner' && (
@@ -376,9 +329,8 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                     )}
                   </div>
 
-                  <div className="flex justify-between text-sm text-slate">
+                  <div className="text-sm text-slate">
                     <span>📅 {formatShortDate(event.date)}</span>
-                    <span>{categoryLabels[category]}</span>
                   </div>
                 </div>
               </div>
@@ -387,10 +339,11 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
 
           <AddTimelineEventModal
             isOpen={isAddModalOpen}
-            onClose={() => { setIsAddModalOpen(false); setEditingEvent(null); }}
+            onClose={() => { setIsAddModalOpen(false); setEditingEvent(null); setModalMode('create'); }}
             onCreate={handleCreate}
             onUpdate={handleUpdate}
             editingEvent={editingEvent}
+            mode={modalMode}
           />
 
           {filteredEvents.length === 0 && (
@@ -403,7 +356,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                   : 'Your planner will add timeline milestones here. Check back soon for the next step in your wedding journey.'
               }
               actionLabel={userRole === 'planner' ? 'Add milestone' : undefined}
-              onAction={userRole === 'planner' ? () => setIsAddModalOpen(true) : undefined}
+              onAction={userRole === 'planner' ? handleOpenCreate : undefined}
               className="py-20"
             />
           )}

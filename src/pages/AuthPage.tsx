@@ -1,29 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
-interface AuthPageProps {
-  onLogin: () => void;
-}
+// AuthPage reads auth state directly via Supabase; no props required
 
 const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
-  const location = useLocation();
+export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<'planner' | 'couple' | ''>('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const fromPath = ((location.state as { from?: string })?.from as string) || '/dashboard';
   const emailIsValid = validateEmail(email);
   const passwordIsValid = password.length >= 8;
   const passwordsMatch = authMode === 'login' || password === confirmPassword;
-  const canSubmit = emailIsValid && passwordIsValid && passwordsMatch;
+  const canSubmit = emailIsValid && passwordIsValid && passwordsMatch && (authMode === 'login' || selectedRole !== '');
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,28 +42,37 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
       return;
     }
 
+    if (authMode === 'signup' && !selectedRole) {
+      setError('Please choose whether you are a Planner or a Couple before creating your account.');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const response =
         authMode === 'login'
           ? await supabase.auth.signInWithPassword({ email, password })
-          : await supabase.auth.signUp({ email, password });
+          : await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                data: {
+                  role: selectedRole,
+                },
+              },
+            });
 
       if (response.error) {
         throw response.error;
       }
 
       if (authMode === 'signup') {
-        setSuccessMessage('Account created successfully. Please check your email to confirm your account.');
-        setAuthMode('login');
-        setPassword('');
-        setConfirmPassword('');
+        navigate('/portfolio', { replace: true });
         return;
       }
 
-      await onLogin();
-      navigate(fromPath, { replace: true });
+      navigate('/onboarding/setup', { replace: true });
     } catch (authError: any) {
       setError(authError?.message || 'Unable to sign in. Please try again.');
     } finally {
@@ -158,20 +164,42 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           </div>
 
           {authMode === 'signup' && (
-            <div>
-              <label className="block text-sm font-medium text-charcoal mb-2" htmlFor="confirmPassword">
-                Confirm password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                required
-                placeholder="Repeat your password"
-                className="w-full rounded-3xl border border-slate-200 bg-cream/70 px-4 py-3 text-sm text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-charcoal mb-2" htmlFor="confirmPassword">
+                  Confirm password
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  required
+                  placeholder="Repeat your password"
+                  className="w-full rounded-3xl border border-slate-200 bg-cream/70 px-4 py-3 text-sm text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20"
+                />
+              </div>
+
+              <div>
+                <p className="mb-2 block text-sm font-medium text-charcoal">I am signing up as</p>
+                <div className="flex gap-3">
+                  {(['planner', 'couple'] as const).map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setSelectedRole(role)}
+                      className={`flex-1 rounded-full border px-4 py-3 text-sm font-semibold transition ${
+                        selectedRole === role
+                          ? 'border-charcoal bg-charcoal text-cream'
+                          : 'border-slate-200 bg-cream/70 text-charcoal hover:border-gold/60 hover:text-gold'
+                      }`}
+                    >
+                      {role === 'planner' ? 'Planner' : 'Couple'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           {successMessage && (

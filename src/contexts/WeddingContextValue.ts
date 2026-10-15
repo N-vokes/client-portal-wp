@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { TimelineEvent, Contract, MoodBoardImage, WeddingData, TimelineAction, UserRole } from '../types';
+import type { TimelineEvent, Contract, MoodBoardImage, MoodBoardCommentRecord, WeddingData, TimelineAction, UserRole } from '../types';
 
 /**
  * Wedding loading state machine
@@ -8,7 +8,7 @@ import type { TimelineEvent, Contract, MoodBoardImage, WeddingData, TimelineActi
  * - no-wedding-found: User authenticated but has no wedding record
  * - loaded: Wedding data successfully loaded and ready to use
  */
-export type WeddingState = 'loading' | 'no-auth' | 'no-wedding-found' | 'loaded';
+export type WeddingState = 'loading' | 'no-auth' | 'no-wedding-found' | 'setup-in-progress' | 'loaded' | 'completed';
 
 /**
  * Wedding Context Type - Contains all wedding-scoped data and operations
@@ -26,7 +26,6 @@ export interface WeddingContextType {
   authUser: any | null;
   wedding: WeddingData | null;
   weddingState: WeddingState;
-  userRole: UserRole | null;
   timelineEvents: TimelineEvent[];
   contracts: Contract[];
   moodBoardImages: MoodBoardImage[];
@@ -34,6 +33,11 @@ export interface WeddingContextType {
   error: string | null;
   lastUpdated: number | null;
   isUpdating: boolean;
+  setupComplete: boolean;
+  /** Currently selected wedding id for the session (persisted) */
+  activeWeddingId: string | null;
+  /** Set the currently active wedding id (persists to localStorage) */
+  setActiveWeddingId: (id: string | null) => void;
   /** ⚠️ WEDDING-SCOPED: Creates event for active wedding only */
   createTimelineEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<void>;
   /** ⚠️ WEDDING-SCOPED: Adds event to active wedding only */
@@ -49,11 +53,22 @@ export interface WeddingContextType {
   /** ⚠️ WEDDING-SCOPED: Deletes contract from active wedding only */
   deleteContract: (id: string) => Promise<void>;
   /** ⚠️ WEDDING-SCOPED: Adds mood board image to active wedding only */
-  addMoodBoardImage: (image: Omit<MoodBoardImage, 'id'>) => Promise<void>;
+  addMoodBoardImage: (image: Omit<MoodBoardImage, 'id'>, file: File) => Promise<void>;
+  /** ⚠️ WEDDING-SCOPED: Updates saved Mood Board details for active wedding only */
+  updateMoodBoardImage: (id: string, updates: Partial<Pick<MoodBoardImage, 'title' | 'category' | 'notes' | 'status'>>) => Promise<void>;
   /** ⚠️ WEDDING-SCOPED: Deletes mood board image from active wedding only */
   deleteMoodBoardImage: (id: string) => Promise<void>;
+  getMoodBoardImageComments: (imageId: string) => Promise<MoodBoardCommentRecord[]>;
+  addMoodBoardComment: (imageId: string, text: string) => Promise<void>;
+  addMoodBoardReply: (imageId: string, parentCommentId: string, text: string) => Promise<MoodBoardCommentRecord>;
+  deleteMoodBoardComment: (imageId: string, commentId: string) => Promise<void>;
+  updateMoodBoardCommentDecision: (imageId: string, commentId: string, isDecision: boolean) => Promise<void>;
   /** ⚠️ WEDDING-SCOPED: Refreshes all data for active wedding */
   refreshData: () => Promise<void>;
+  /** Update wedding details (couple names, date, etc.) */
+  updateWedding: (updates: Partial<WeddingData>) => Promise<void>;
+  /** Mark onboarding as completed (updates weddingState) */
+  completeSetup: () => void;
 }
 
 export const WeddingContext = createContext<WeddingContextType | undefined>(undefined);

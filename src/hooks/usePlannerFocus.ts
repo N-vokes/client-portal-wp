@@ -19,10 +19,11 @@ import type {
  * Gracefully handles cases where no wedding is loaded
  */
 export const usePlannerFocus = (): PlannerFocusData => {
-  const { timelineEvents, contracts, weddingState } = useWedding();
+  const { wedding, timelineEvents, contracts, weddingState } = useWedding();
 
   // Return empty focus data if wedding is not loaded
   const isWeddingLoaded = weddingState === 'loaded';
+  const currentWeddingId = wedding?.id;
   const safeTimelineEvents = isWeddingLoaded ? timelineEvents : [];
   const safeContracts = isWeddingLoaded ? contracts : [];
 
@@ -45,7 +46,6 @@ export const usePlannerFocus = (): PlannerFocusData => {
           id: event.id,
           title: event.title,
           daysOverdue,
-          category: event.category,
         };
       })
       .sort((a, b) => b.daysOverdue - a.daysOverdue);
@@ -75,7 +75,6 @@ export const usePlannerFocus = (): PlannerFocusData => {
         id: event.id,
         title: event.title,
         daysUntil: calculateDaysUntil(event.date),
-        category: event.category,
       }))
       .sort((a, b) => a.daysUntil - b.daysUntil);
   }, [safeTimelineEvents]);
@@ -115,7 +114,9 @@ export const usePlannerFocus = (): PlannerFocusData => {
         type: 'overdue-event',
         priority: 'critical',
         score: 100,
-        actionUrl: '/timeline',
+        actionUrl: currentWeddingId
+          ? `/dashboard/${currentWeddingId}/timeline`
+          : '/timeline',
       });
     }
 
@@ -141,7 +142,9 @@ export const usePlannerFocus = (): PlannerFocusData => {
         type: 'upcoming-event',
         priority: 'high',
         score: upcomingScore,
-        actionUrl: '/timeline',
+        actionUrl: currentWeddingId
+          ? `/dashboard/${currentWeddingId}/timeline`
+          : '/timeline',
       });
     }
 
@@ -165,7 +168,9 @@ export const usePlannerFocus = (): PlannerFocusData => {
         type: 'vendor-gap',
         priority: 'high',
         score: Math.min(100, vendorScore),
-        actionUrl: '/contracts',
+        actionUrl: currentWeddingId
+          ? `/dashboard/${currentWeddingId}/contracts`
+          : '/contracts',
       });
     }
 

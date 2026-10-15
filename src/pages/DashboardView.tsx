@@ -9,7 +9,6 @@ import { GettingStartedGuide, type GettingStartedStep } from '../components/dash
 import { DashboardSkeleton } from '../components/Skeleton';
 import { useDashboard } from '../hooks/useDashboard';
 import { useWedding } from '../contexts/useWedding';
-import { OnboardingPage } from './OnboardingPage';
 import {
   DashboardHero,
   DashboardProgress,
@@ -94,31 +93,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   contractHeading,
   children,
 }) => {
+  console.log("🚨 DASHBOARD VIEW RENDERED");
   const {
     authUser,
     wedding,
-    loading: weddingLoading,
     timelineEvents,
     contracts,
     moodBoardImages,
   } = useWedding();
+  console.log("🔐 AUTH USER FULL OBJECT:", authUser);
+console.log("🔐 AUTH USER ID:", authUser?.id);
   const dashboardData = useDashboard(userRole) ?? emptyDashboardData;
   const navigate = useNavigate();
-
-  if (authUser && !weddingLoading && wedding === null) {
-    return <OnboardingPage errorMessage={dashboardData.error} />;
-  }
+  const basePath =
+    userRole === 'planner'
+      ? wedding?.id
+        ? `/dashboard/${wedding.id}`
+        : '/portfolio'
+      : '/couple/dashboard';
 
   const timelineItems = safeArray(timelineEvents);
   const contractItems = safeArray(contracts);
   const moodBoardItems = safeArray(moodBoardImages);
-  const weddingLoaded = dashboardData.weddingState === 'loaded' && wedding !== null;
-  const hasMinimalDashboardData =
-    weddingLoaded &&
-    timelineItems.length === 0 &&
-    contractItems.length === 0 &&
-    moodBoardItems.length === 0;
-  const showOnboardingHint = weddingLoaded && timelineItems.length === 0;
+  const activePlanningFlow = safeArray<ActivePlanningFlowItem>(dashboardData.activePlanningFlow);
+  const upcomingMilestones = safeArray<UpcomingMilestone>(dashboardData.upcomingMilestones);
+  const recentContracts = safeArray<RecentContract>(dashboardData.recentContracts);
+
+  // Check for empty state: no milestones, contracts, or active planning flow
+  const hasNoDashboardData =
+    upcomingMilestones.length === 0 &&
+    recentContracts.length === 0 &&
+    activePlanningFlow.length === 0;
+  
+  // Show onboarding panel only if truly no data exists
+  const showFirstTimeOnboarding = hasNoDashboardData;
+  const showOnboardingHint = !showFirstTimeOnboarding && timelineItems.length === 0;
+
+  console.log('WEDDING STATE:', wedding, dashboardData.weddingState);
 
   const gettingStartedSteps: GettingStartedStep[] = [
     {
@@ -126,7 +137,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       title: 'Create Timeline',
       description: 'Add milestones and plan key dates for your wedding.',
       icon: '📅',
-      link: '/dashboard/timeline',
+      link: `${basePath}/timeline`,
       completed: timelineItems.length > 0,
     },
     {
@@ -134,7 +145,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       title: 'Upload Contracts',
       description: 'Store vendor contracts and important documents.',
       icon: '📄',
-      link: '/dashboard/contracts',
+      link: `${basePath}/contracts`,
       completed: contractItems.length > 0,
     },
     {
@@ -142,12 +153,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       title: 'Build Mood Board',
       description: 'Gather inspiration and visualize your wedding style.',
       icon: '🎨',
-      link: '/dashboard/moodboard',
+      link: `${basePath}/moodboard`,
       completed: moodBoardItems.length > 0,
     },
   ];
 
-  const showGettingStarted = weddingLoaded && 
+  const showGettingStarted =
+    !showFirstTimeOnboarding &&
+    dashboardData.weddingState === 'loaded' &&
     (timelineItems.length === 0 || contractItems.length === 0 || moodBoardItems.length === 0);
 
   const heroCopy = safeObject(dashboardData.heroCopy, emptyHeroCopy);
@@ -160,20 +173,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     dashboardData.nextAction,
     emptyNextAction
   );
-  const activePlanningFlow = safeArray<ActivePlanningFlowItem>(
-    dashboardData.activePlanningFlow
-  );
-  const upcomingMilestones = safeArray<UpcomingMilestone>(
-    dashboardData.upcomingMilestones
-  );
   const progressPercent = safePercent(dashboardData.progressPercent);
-  const recentContracts = safeArray<RecentContract>(
-    dashboardData.recentContracts
-  );
   const primaryAction = safeObject(
     dashboardData.primaryAction,
     emptyPrimaryAction
   );
+
+  const coupleNames = wedding?.coupleNames || '';
+  const welcomeHeading =
+    userRole === 'planner'
+      ? coupleNames
+        ? `Welcome to ${coupleNames}'s wedding`
+        : 'Welcome to your client workspace'
+      : coupleNames
+      ? `Welcome, ${coupleNames}`
+      : 'Welcome to your wedding journey';
 
   // Show explicit loading state while checking wedding existence
   if (dashboardData.weddingState === 'loading') {
@@ -212,50 +226,46 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
   }
 
-  // Show no wedding found state and surface onboarding
-  if (dashboardData.weddingState === 'no-wedding-found') {
-    return <OnboardingPage errorMessage={dashboardData.error} />;
-  }
-
-  if (hasMinimalDashboardData) {
+  // Show first-time onboarding if no wedding data exists
+  if (showFirstTimeOnboarding) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-4xl rounded-[2rem] border border-gold/20 bg-white p-10 shadow-xl shadow-slate-200/60">
           <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl font-serif text-charcoal">
-              Welcome to your wedding workspace
+            <div className="mx-auto mb-6 h-1.5 w-24 rounded-full bg-gold" />
+            <p className="text-sm uppercase tracking-[0.32em] text-gold font-semibold">
+              Ever After Welcome
+            </p>
+            <h1 className="mt-4 text-4xl sm:text-5xl font-serif text-charcoal">
+              {welcomeHeading}
             </h1>
             <p className="mt-5 text-slate text-base leading-relaxed sm:text-lg max-w-2xl mx-auto">
-              Let’s get your planning journey started. Begin by adding your first milestones, vendors, or inspiration.
+              Your planning space is ready. Add your first timeline event and we’ll help you bring every milestone, vendor, and idea together.
             </p>
 
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard/timeline')}
+                onClick={() => navigate(`${basePath}/timeline`)}
                 className="inline-flex items-center justify-center rounded-full bg-charcoal px-8 py-4 text-sm font-semibold text-cream transition hover:bg-charcoal/90"
               >
-                Start planning
+                Start Planning
               </button>
 
               <button
                 type="button"
-                onClick={() => navigate('/dashboard')}
-                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-cream px-8 py-4 text-sm font-semibold text-charcoal"
+                onClick={() => navigate(`${basePath}/timeline`)}
+                className="inline-flex items-center justify-center rounded-full border border-gold bg-cream px-8 py-4 text-sm font-semibold text-charcoal transition hover:bg-gold/10"
               >
-                Explore dashboard
+                Add your first timeline event
               </button>
             </div>
 
             <div className="mt-10 rounded-3xl border border-gold/10 bg-cream/70 p-6 text-left text-charcoal shadow-sm">
-              <h2 className="font-semibold text-lg">Why this exists</h2>
+              <h2 className="font-semibold text-lg">A calm start to your journey</h2>
               <p className="mt-3 text-slate text-sm leading-relaxed">
-                Your wedding workspace keeps everything organized in one secure place.
+                Ever After makes the first step easy, so you can focus on the excitement of planning your day.
               </p>
-            </div>
-
-            <div className="mt-8 rounded-full border border-gold/20 bg-gold/5 px-5 py-3 text-sm font-medium text-charcoal inline-flex items-center justify-center mx-auto">
-              Step 1: Add your first milestone
             </div>
           </div>
         </div>
