@@ -65,13 +65,23 @@ function CoupleLayout() {
 
 function PlannerRoute() {
   const { weddingId } = useParams();
-  const { setActiveWeddingId } = useWedding();
+  const { activeWeddingId, wedding, loading, setActiveWeddingId } = useWedding();
+  const [requestedWeddingId, setRequestedWeddingId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (weddingId) setActiveWeddingId(weddingId);
+    if (weddingId) {
+      setRequestedWeddingId(weddingId);
+      setActiveWeddingId(weddingId);
+    }
   }, [weddingId]);
 
   if (!weddingId) return <Navigate to="/portfolio" replace />;
+  if (requestedWeddingId !== weddingId || loading) {
+    return <PageLoader />;
+  }
+  if (activeWeddingId !== weddingId || wedding?.id !== weddingId) {
+    return <Navigate to="/portfolio" replace />;
+  }
 
   return <PlannerLayout />;
 }
@@ -181,58 +191,44 @@ function AppContent() {
         </>
       ) : (
         <>
-          {/* ONBOARDING */}
-          {!activeWeddingId ? (
+          {userRole === 'planner' ? (
             <>
-              {userRole === 'planner' ? (
-                <Route element={<PlannerLayout />}>
-                  <Route path="/portfolio" element={<OnboardingPage />} />
-                  <Route path="/onboarding/setup" element={<OnboardingSetup />} />
-                </Route>
-              ) : (
-                <>
-                  <Route path="/portfolio" element={<OnboardingPage />} />
-                  <Route path="/onboarding/setup" element={<OnboardingSetup />} />
-                </>
-              )}
+              <Route element={<GlobalPlannerLayout />}>
+                <Route path="/portfolio" element={<MultiWeddingDashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+              </Route>
+
+              <Route path="/dashboard/:weddingId/*" element={<PlannerRoute />}>
+                <Route index element={<Dashboard />} />
+                <Route path="timeline" element={<TimelinePage />} />
+                <Route path="contracts" element={<ContractVault />} />
+                <Route path="moodboard" element={<MoodBoard />} />
+                <Route path="messages" element={<MessagesPage />} />
+                <Route path="clients" element={<Clients />} />
+                <Route path="clients/:id" element={<ClientProfile />} />
+              </Route>
+
+              {!activeWeddingId && <Route path="/onboarding/setup" element={<OnboardingSetup />} />}
+              <Route path="*" element={<PlannerFallbackRoute />} />
+            </>
+          ) : !activeWeddingId ? (
+            <>
+              <Route path="/portfolio" element={<OnboardingPage />} />
+              <Route path="/onboarding/setup" element={<OnboardingSetup />} />
               <Route path="*" element={<Navigate to="/portfolio" replace />} />
             </>
           ) : (
             <>
-              {/* PLANNER */}
-              {userRole === 'planner' ? (
-                <>
-                  <Route element={<GlobalPlannerLayout />}>
-                    <Route path="/portfolio" element={<MultiWeddingDashboard />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                  </Route>
+              {/* COUPLE */}
+              <Route path="/couple/dashboard/*" element={<CoupleRoute />}>
+                <Route index element={<Dashboard />} />
+                <Route path="timeline" element={<TimelinePage />} />
+                <Route path="contracts" element={<ContractVault />} />
+                <Route path="moodboard" element={<MoodBoard />} />
+                <Route path="messages" element={<MessagesPage />} />
+              </Route>
 
-                  <Route path="/dashboard/:weddingId/*" element={<PlannerRoute />}>
-                    <Route index element={<Dashboard />} />
-                    <Route path="timeline" element={<TimelinePage />} />
-                    <Route path="contracts" element={<ContractVault />} />
-                    <Route path="moodboard" element={<MoodBoard />} />
-                    <Route path="messages" element={<MessagesPage />} />
-                    <Route path="clients" element={<Clients />} />
-                    <Route path="clients/:id" element={<ClientProfile />} />
-                  </Route>
-
-                  <Route path="*" element={<PlannerFallbackRoute />} />
-                </>
-              ) : (
-                /* COUPLE */
-                <>
-                  <Route path="/couple/dashboard/*" element={<CoupleRoute />}>
-                    <Route index element={<Dashboard />} />
-                    <Route path="timeline" element={<TimelinePage />} />
-                    <Route path="contracts" element={<ContractVault />} />
-                    <Route path="moodboard" element={<MoodBoard />} />
-                    <Route path="messages" element={<MessagesPage />} />
-                  </Route>
-
-                  <Route path="*" element={<Navigate to="/couple/dashboard" replace />} />
-                </>
-              )}
+              <Route path="*" element={<Navigate to="/couple/dashboard" replace />} />
             </>
           )}
         </>

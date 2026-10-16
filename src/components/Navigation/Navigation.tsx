@@ -11,7 +11,7 @@ interface NavigationProps {
 export const Navigation: React.FC<NavigationProps> = ({ mode, plannerScope = 'workspace' }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { wedding } = useWedding();
+  const { wedding, activeWeddingId } = useWedding();
   const { userRole, logout } = useAuth();
   const uiMode = mode ?? (userRole ?? 'couple');
   const [signOutError, setSignOutError] = React.useState<string | null>(null);
@@ -30,12 +30,12 @@ export const Navigation: React.FC<NavigationProps> = ({ mode, plannerScope = 'wo
     }
   };
 
-  const basePath =
-    uiMode === 'planner'
-      ? wedding?.id
-        ? `/dashboard/${wedding.id}`
-        : '/portfolio'
-      : '/couple/dashboard';
+  const hasActivePlannerWedding = Boolean(
+    uiMode === 'planner' &&
+    activeWeddingId &&
+    wedding?.id === activeWeddingId
+  );
+  const basePath = '/couple/dashboard';
 
   const navItems =
     uiMode === 'planner'
@@ -47,11 +47,13 @@ export const Navigation: React.FC<NavigationProps> = ({ mode, plannerScope = 'wo
         : [
             { path: '/dashboard', label: 'Planner Dashboard', icon: '🏠' },
             { path: '/portfolio', label: 'Portfolio', icon: '📁' },
-            { path: `${basePath}`, label: 'Wedding Workspace', icon: '💍' },
-            { path: `${basePath}/timeline`, label: 'Timeline', icon: '📅' },
-            { path: `${basePath}/contracts`, label: 'Contracts', icon: '📄' },
-            { path: `${basePath}/moodboard`, label: 'Mood Board', icon: '✨' },
-            { path: `${basePath}/clients`, label: 'Clients', icon: '👥' },
+            ...(hasActivePlannerWedding ? [
+              { path: `/dashboard/${activeWeddingId}`, label: 'Wedding Workspace', icon: '💍' },
+              { path: `/dashboard/${activeWeddingId}/timeline`, label: 'Timeline', icon: '📅' },
+              { path: `/dashboard/${activeWeddingId}/contracts`, label: 'Contracts', icon: '📄' },
+              { path: `/dashboard/${activeWeddingId}/moodboard`, label: 'Mood Board', icon: '✨' },
+              { path: `/dashboard/${activeWeddingId}/clients`, label: 'Clients', icon: '👥' },
+            ] : []),
           ]
       : [
           { path: `${basePath}`, label: 'Dashboard', icon: '🏠' },

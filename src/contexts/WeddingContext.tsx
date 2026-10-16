@@ -150,6 +150,7 @@ const {
         if (!isCurrentRequest()) return;
         if (belongsToUser(requestedWedding, authenticatedUser.id)) {
           weddingData = requestedWedding;
+          persistActiveWeddingId(requestedWeddingId);
         }
       } else {
         try {
@@ -162,6 +163,8 @@ const {
               if (belongsToUser(byId, authenticatedUser.id)) {
                 weddingData = byId;
                 persistActiveWeddingId(storedId);
+              } else {
+                persistActiveWeddingId(null);
               }
             } catch (err) {
             }
@@ -270,6 +273,7 @@ const {
       }
     } catch (err) {
       if (!isCurrentRequest()) return;
+      if (requestedWeddingId) persistActiveWeddingId(null);
       console.error('Failed to load wedding data:', err);
       setError('Failed to load wedding data. Please try again.');
       setWeddingState('no-wedding-found');
