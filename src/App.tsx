@@ -28,36 +28,65 @@ const ClientProfile = React.lazy(() => import('./pages/ClientProfile').then(m =>
 
 /* ---------------- LAYOUTS ---------------- */
 
-function PlannerLayout() {
+interface AppLayoutProps {
+  mode: 'planner' | 'couple';
+  plannerScope?: 'global' | 'workspace';
+  children: React.ReactNode;
+}
+
+function AppLayout({ mode, plannerScope, children }: AppLayoutProps) {
+  const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
+  const drawerWidth = 'min(18rem, 45vw)';
+
   return (
     <div className="min-h-screen bg-cream">
-      <Navigation mode="planner" />
+      <Navigation
+        mode={mode}
+        plannerScope={plannerScope}
+        isDrawerOpen={isDrawerOpen}
+        onDrawerOpenChange={setIsDrawerOpen}
+      />
+      <main
+        onClickCapture={isDrawerOpen ? () => setIsDrawerOpen(false) : undefined}
+        className="min-h-[calc(100vh-4.3rem)] motion-reduce:transition-none"
+        style={{
+          marginLeft: isDrawerOpen ? drawerWidth : 0,
+          width: isDrawerOpen ? `calc(100% - ${drawerWidth})` : '100%',
+        }}
+      >
+        {children}
+      </main>
+    </div>
+  );
+}
+
+function PlannerLayout() {
+  return (
+    <AppLayout mode="planner">
       <Suspense fallback={<PageLoader />}>
         <Outlet />
       </Suspense>
-    </div>
+    </AppLayout>
   );
 }
 
 function GlobalPlannerLayout() {
   return (
-    <div className="min-h-screen bg-cream">
-      <Navigation mode="planner" plannerScope="global" />
+    <AppLayout mode="planner" plannerScope="global">
       <Suspense fallback={<PageLoader />}>
         <Outlet />
       </Suspense>
-    </div>
+    </AppLayout>
   );
 }
 
 function CoupleLayout() {
   return (
-    <div className="min-h-screen bg-cream">
-      <Navigation mode="couple" />
+    <AppLayout mode="couple">
       <Suspense fallback={<PageLoader />}>
         <Outlet />
       </Suspense>
-    </div>
+    </AppLayout>
   );
 }
 

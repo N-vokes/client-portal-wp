@@ -797,30 +797,30 @@ export const GlobalPlannerDashboard: React.FC = () => {
 
       <section aria-labelledby="at-a-glance-title" className="mb-8">
         <h2 id="at-a-glance-title" className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#73796F]">At a Glance</h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <article className="flex min-h-[112px] items-center gap-4 rounded-xl border border-[#075B46] bg-[#075B46] p-4 text-white">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <article className="flex min-h-[112px] min-w-0 items-center gap-4 rounded-xl border border-[#075B46] bg-[#075B46] p-4 text-white">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[#E5BC59]">
               <DashboardIcon name="weddings" />
             </span>
-            <div>
+            <div className="min-w-0">
               <p className="text-3xl font-serif leading-none">{totalActiveWeddings}</p>
               <p className="mt-2 text-xs font-medium text-white/85">Active Weddings</p>
             </div>
           </article>
-          <article className="flex min-h-[112px] items-center gap-4 rounded-xl border border-[#E7D59F] bg-[#FBF0D4] p-4">
+          <article className="flex min-h-[112px] min-w-0 items-center gap-4 rounded-xl border border-[#E7D59F] bg-[#FBF0D4] p-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/70 text-[#8A681C]">
               <DashboardIcon name="calendar" />
             </span>
-            <div>
+            <div className="min-w-0">
               <p className="text-3xl font-serif leading-none text-[#172D26]">{upcomingWeddings.length}</p>
               <p className="mt-2 text-xs font-medium text-[#70591E]">Upcoming Wedding Dates</p>
             </div>
           </article>
-          <article className="flex min-h-[112px] items-center gap-4 rounded-xl border border-[#E9C7C5] bg-[#F8E4E3] p-4">
+          <article className="flex min-h-[112px] min-w-0 items-center gap-4 rounded-xl border border-[#E9C7C5] bg-[#F8E4E3] p-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/75 text-[#914A47]">
               <DashboardIcon name="priority" />
             </span>
-            <div>
+            <div className="min-w-0">
               <p className="text-3xl font-serif leading-none text-[#302D2A]">
                 {isPlannerFocusLoaded ? plannerFocusState.items.length : '—'}
               </p>
@@ -844,10 +844,10 @@ export const GlobalPlannerDashboard: React.FC = () => {
         </div>
       </section>
 
-      <div className="mb-8 grid gap-4 lg:grid-cols-[1.65fr_0.85fr]">
+      <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,0.85fr)]">
         <section id="priority-tasks" aria-labelledby="priority-title" className="min-w-0">
           <div className="mb-3 flex items-end justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <h2 id="priority-title" className="text-xl font-serif text-[#172D26] md:text-2xl">Priority Tasks</h2>
               <p className="mt-1 text-sm text-[#73796F]">Weddings with existing overdue items or follow-up signals.</p>
             </div>
@@ -926,7 +926,7 @@ export const GlobalPlannerDashboard: React.FC = () => {
           )}
         </section>
 
-        <aside className="h-fit rounded-xl border border-[#D9E5DD] bg-white p-4 md:p-5">
+        <aside className="h-fit min-w-0 rounded-xl border border-[#D9E5DD] bg-white p-4 md:p-5">
           <h2 className="text-xl font-serif text-[#172D26]">Quick Actions</h2>
           <p className="mt-1 text-sm text-[#73796F]">Jump into the work that matters.</p>
           <nav aria-label="Dashboard quick actions" className="mt-4 flex flex-col gap-2">
@@ -958,8 +958,8 @@ export const GlobalPlannerDashboard: React.FC = () => {
         </aside>
       </div>
 
-      <div className="mb-8 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <section aria-labelledby="coming-up-title" className="overflow-hidden rounded-xl border border-[#D9E5DD] bg-white">
+      <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <section aria-labelledby="coming-up-title" className="min-w-0 overflow-hidden rounded-xl border border-[#D9E5DD] bg-white">
           <div className="flex flex-col gap-3 border-b border-[#E8EEE9] px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5">
             <div>
               <h2 id="coming-up-title" className="text-xl font-serif text-[#172D26] md:text-2xl">Coming Up</h2>
@@ -975,11 +975,11 @@ export const GlobalPlannerDashboard: React.FC = () => {
             <div className="divide-y divide-[#E8EEE9]">
               {upcomingWeddings.map((wedding) => (
                 <div key={wedding.id} className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-[#F8FAF7] sm:flex-row sm:items-center sm:justify-between md:px-5">
-                  <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E5EEF9] text-[#435A78]">
                       <DashboardIcon name="calendar" className="h-[18px] w-[18px]" />
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="truncate font-semibold text-[#172D26]">{wedding.coupleNames}</h3>
                       <p className="mt-0.5 text-xs text-[#73796F]">{formatWeddingDate(wedding.weddingDate)}</p>
                     </div>
@@ -1002,7 +1002,7 @@ export const GlobalPlannerDashboard: React.FC = () => {
           )}
         </section>
 
-        <section aria-labelledby="planning-progress-title" className="rounded-xl border border-[#D9E5DD] bg-white p-4 md:p-5">
+        <section aria-labelledby="planning-progress-title" className="min-w-0 rounded-xl border border-[#D9E5DD] bg-white p-4 md:p-5">
           <div className="mb-3">
             <h2 id="planning-progress-title" className="text-xl font-serif text-[#172D26] md:text-2xl">Planning Progress</h2>
             <p className="mt-1 text-sm text-[#73796F]">Timeline completion across your weddings.</p>
@@ -1039,8 +1039,8 @@ export const GlobalPlannerDashboard: React.FC = () => {
         </section>
       </div>
 
-      <div className="mb-8 grid gap-4 xl:grid-cols-2">
-        <section aria-labelledby="vendor-coverage-title" className="rounded-xl border border-[#D9E5DD] bg-[#F2F7F2] p-4 md:p-5">
+      <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <section aria-labelledby="vendor-coverage-title" className="min-w-0 rounded-xl border border-[#D9E5DD] bg-[#F2F7F2] p-4 md:p-5">
           <div className="mb-3">
             <h2 id="vendor-coverage-title" className="text-xl font-serif text-[#172D26] md:text-2xl">Vendor Coverage</h2>
             <p className="mt-1 text-sm text-[#73796F]">Categories that still need coverage.</p>
@@ -1089,7 +1089,7 @@ export const GlobalPlannerDashboard: React.FC = () => {
           )}
         </section>
 
-        <section aria-labelledby="client-attention-title" className="rounded-xl border border-[#E9D8D3] bg-[#FBF5F2] p-4 md:p-5">
+        <section aria-labelledby="client-attention-title" className="min-w-0 rounded-xl border border-[#E9D8D3] bg-[#FBF5F2] p-4 md:p-5">
           <div className="mb-3">
             <h2 id="client-attention-title" className="text-xl font-serif text-[#172D26] md:text-2xl">Client Attention</h2>
             <p className="mt-1 text-sm text-[#73796F]">Couples who may need a planner follow-up.</p>
